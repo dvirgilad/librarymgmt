@@ -16,7 +16,7 @@ class Library:
 
     def add_Item(self, item: Item = None, item_list: [Item] = []):
         if item:
-            self.items.append(book)
+            self.items.append(item)
             print(f"added {item.name}")
         else:
             for b in item_list:
