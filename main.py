@@ -1,8 +1,9 @@
 import time
-from library import Library
-from patrons import Student, Teacher
-from items import Book, Disk
-
+from library.library import Library
+from patrons.student import Student
+from patrons.teacher import Teacher
+from library_item.book import Book
+from library_item.disk import Disk
 
 def run_library():
 

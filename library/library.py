@@ -1,9 +1,9 @@
-from items import Item
-from patrons import Patron
+from library_item.library_item_base import LibraryItem
+from patrons.patron_base import Patron
 
 
 class Library:
-    def __init__(self, name, items: [Item], patrons: [Patron]):
+    def __init__(self, name, items: [LibraryItem], patrons: [Patron]):
         name, self.items, self.patrons = name, items, patrons
 
     def show_members(self):
@@ -14,7 +14,7 @@ class Library:
         for item in self.items:
             print("{:<30} {:^} {:=}".format(item.name, item.type, item.serial))
 
-    def add_Item(self, item: Item = None, item_list: [Item] = []):
+    def add_Item(self, item: LibraryItem = None, item_list: [LibraryItem] = []):
         if item:
             self.items.append(item)
             print(f"added {item.name}")
