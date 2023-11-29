@@ -5,9 +5,9 @@ from patrons.teacher import Teacher
 from library_item.book import Book
 from library_item.disk import Disk
 
-def run_library():
 
-    L = Library("DPL", [], [])
+def run_library():
+    L = Library("DPL", [])
     teach1 = Teacher("steve", "math")
     teach2 = Teacher("Jack", "CS")
     stu1 = Student("bob", "Econ")
@@ -20,18 +20,18 @@ def run_library():
     L.show_members()
     print("\n\n\n")
     time.sleep(3)
-    b1 = Book("Pride & Prejudice", "Jane Austin", "drama")
-    b2 = Book("Dune", "Frank Herbert", "Sci-Fi")
-    b3 = Book("The Odyssey", "Homer", "greek")
-    b4 = Book("The Illiad", "Homer", "greek")
-    b5 = Book("C Programming Language", "Brian W. Kernighan", "Cool")
+    b1 = Book("Pride & Prejudice", "Jane Austin", "drama", 30, 30)
+    b2 = Book("Dune", "Frank Herbert", "Sci-Fi", 100, 20)
+    b3 = Book("The Odyssey", "Homer", "greek", 500, 10)
+    b4 = Book("The Illiad", "Homer", "greek", 10, 20)
+    b5 = Book("C Programming Language", "Brian W. Kernighan", "Cool", 5, 100)
 
-    c1 = Disk("Blonde", "Frank Ocean", "R&B")
-    c2 = Disk("Meteora", "Linkin Park", "Punk")
-    c3 = Disk("AM", "Arctic Monekys", "Rock")
-    c4 = Disk("Swimming", "Mac Miller", "Rap")
+    c1 = Disk("Blonde", "Frank Ocean", "R&B", 30, 30)
+    c2 = Disk("Meteora", "Linkin Park", "Punk", 100, 20)
+    c3 = Disk("AM", "Arctic Monekys", "Rock", 10, 20)
+    c4 = Disk("Swimming", "Mac Miller", "Rap", 5, 100)
 
-    L.add_Item(item_list=[b1, b2, b3, b4, b5, c1, c2, c3, c4])
+    L.add_items(library_item_list=[b1, b2, b3, b4, b5, c1, c2, c3, c4])
     time.sleep(2)
     print("Catalog:")
     L.show_catalog()
@@ -51,5 +51,5 @@ def run_library():
     stu1.get_fines()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_library()

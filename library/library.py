@@ -3,34 +3,36 @@ from patrons.patron_base import Patron
 
 
 class Library:
-    def __init__(self, name, items: [LibraryItem], patrons: [Patron]):
-        name, self.items, self.patrons = name, items, patrons
+    def __init__(self, name, patrons: [Patron], library_items={}):
+        name, self.library_items, self.patrons = name, library_items, patrons
 
     def show_members(self):
         for member in self.patrons:
-            print("{:<20} {:>}".format(member.name, member.category))
+            print(f"{member.name}:\t{member.category} ")
 
     def show_catalog(self):
-        for item in self.items:
-            print("{:<30} {:^} {:=}".format(item.name, item.type, item.serial))
+        for key, library_item in self.library_items.items():
+            print(
+                f"{library_item.name}\t\t\t {library_item.type}\t\t\t {library_item.serial}"
+            )
 
-    def add_Item(self, item: LibraryItem = None, item_list: [LibraryItem] = []):
-        if item:
-            self.items.append(item)
-            print(f"added {item.name}")
-        else:
-            for b in item_list:
-                self.items.append(b)
-                print(f"added {b.name}")
+    def add_item(self, library_item: LibraryItem):
+        self.library_items[id(library_item)] = library_item
+        print(f"added {library_item.name}")
+        return True
 
-    def remove_items(self, serial: int):
+    def add_items(self, library_item_list: [LibraryItem]):
+        for library_item in library_item_list:
+            self.add_item(library_item)
 
-        item_to_remove = next((item for item in self.items if item.serial == serial))
-        if item_to_remove:
-            self.items.remove(item_to_remove)
+    def remove_item(self, item_to_remove: LibraryItem):
+        try:
+            del self.library_items[id(item_to_remove)]
             print(f"{item_to_remove} removed")
-        else:
+            return True
+        except KeyError:
             print("book not found")
+            return False
 
     def add_patrons(self, member: Patron = None, patron_list: [Patron] = []):
         if member:
@@ -43,10 +45,8 @@ class Library:
 
     def search_library(self, query: str):
         result = []
-        for item in self.items:
-            if (
-                item.match_string(query)
-            ):
-                result.append(item)
-                print(item.name)
+        for key, library_item in self.library_items.items():
+            if library_item.match_string(query):
+                result.append(library_item)
+                print(library_item.name)
         return result
