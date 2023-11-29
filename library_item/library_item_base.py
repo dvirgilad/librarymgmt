@@ -1,10 +1,10 @@
-from datetime import datetime
-import random
+"""Base Library Item """
 import abc
-from patrons.patron_base import Patron
 
 
 class LibraryItem(abc.ABC):
+    """Base Library Class: accepts name, item type fine and borrowing period"""
+
     def __init__(
         self,
         name,
@@ -20,37 +20,16 @@ class LibraryItem(abc.ABC):
             False,
         )
 
-    def borrow(self, borrower: Patron):
-        if self.borrowed_status:
-            print(f"This {self.type} is currently checked out!")
-            return False
-        else:
-            self.time_borrowed = datetime.now()
-            self.borrower = borrower
-            self.borrowed_status = True
-            print(f"{borrower.name} checked out {self.name}")
-            return True
+    def update_item(self, attribute_to_edit, new_value):
+        """Change valid attributes of a library item"""
+        for item_attribute in vars(self).keys():
+            if item_attribute.lower() == attribute_to_edit.lower():
+                setattr(self, item_attribute, new_value)
+                return True
+        return False
 
-    def unborrow(self):
-        time_returned = datetime.now()
-        time_borrowed = (time_returned - self.time_borrowed).microseconds
-        print(time_borrowed)
-        if time_borrowed > self.borrowing_period:
-            fine = self.fine * (time_borrowed - self.borrowing_period)
-            print(
-                f"{self.borrower.name} has returned this {self.type} late and for that {self.borrower.name} must pay a ${fine} fine!"
-            )
-            self.borrower.fines += fine
-        self.borrower = None
-        self.borrowed_status = False
-        print(f"{self.name} returned")
-        return True
-
-    def update(self, field: str, value):
-        if hasattr(self, field):
-            setattr(self, field, value)
-
-    def match_string(self, query):
-        for property, value in vars(self).items():
+    def match_string(self, query) -> bool:
+        """Check if query string matches any attribute of item for search"""
+        for value in vars(self).values():
             if query.lower() in str(value).lower():
                 return True
