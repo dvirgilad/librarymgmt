@@ -2,7 +2,7 @@
 from datetime import datetime
 from library_item.library_item_base import LibraryItem
 from patrons.patron_base import Patron
-import csv
+from transactions.transactions import Transaction, Actions
 
 
 class Library:
@@ -43,7 +43,7 @@ class Library:
             print(f"{item_to_remove} removed")
             return True
         except KeyError:
-            print("book not found")
+            print(f"{item_to_remove.type} not found")
             return False
 
     def add_patron(self, member: Patron) -> bool:
@@ -87,26 +87,14 @@ class Library:
         item_to_borrow.time_borrowed = datetime.now()
         item_to_borrow.borrower = borrower
         item_to_borrow.borrowed_status = True
-        self.record_transaction(item_to_borrow, borrower)
+        Transaction(
+            borrower.name,
+            item_to_borrow.name,
+            Actions.BORROWED.value,
+            item_to_borrow.time_borrowed,
+        ).send_to_csv()
         print(f"{borrower.name} checked out {item_to_borrow.name}")
         return True
-
-    def record_transaction(self, library_item: LibraryItem, patron: Patron):
-        """Write Library transaction to transaction.csv"""
-        action = "RETURNED"
-        if library_item.borrowed_status:
-            action = "BORROWED"
-        with open("transactions.csv", "a", newline="", encoding="UTF-8") as csvfile:
-            writer = csv.writer(csvfile, delimiter=",")
-            writer.writerow(
-                [
-                    str(library_item.time_borrowed),
-                    patron.name,
-                    action,
-                    library_item.name,
-                ]
-            )
-            return True
 
     def return_item(self, item_to_return: LibraryItem) -> bool:
         """Return library item to library."""
@@ -122,9 +110,14 @@ class Library:
                 f"{item_to_return.borrower.name} has returned this {item_to_return.type}"
                 f" late and for that {item_to_return.borrower.name} must pay a ${fine} fine!"
             )
-            item_to_return.borrower.fines += fine
+            item_to_return.borrower._fines += fine
         item_to_return.borrowed_status = False
-        self.record_transaction(item_to_return, item_to_return.borrower)
+        Transaction(
+            item_to_return.borrower.name,
+            item_to_return.name,
+            Actions.RETURNED.value,
+            datetime.now(),
+        ).send_to_csv()
         item_to_return.borrower = None
         print(f"{item_to_return.name} returned")
         return True

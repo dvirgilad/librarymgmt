@@ -46,7 +46,8 @@ def run_library():
     # time.sleep(2)
     print("\n\n\n")
     L.return_item(b1)
-    stu1.get_fines()
+    print(stu1.fines)
+    print(stu1._fines)
 
 
 if __name__ == "__main__":
