@@ -5,17 +5,46 @@ from patrons.patron_base import Patron
 from transactions.transactions import Transaction, Actions
 
 
+class DeleteAttributeException(Exception):
+    """Exception raised if there is an attempt to delete a protected attribute"""
+
+
+class PatronNotFound(Exception):
+    """Exception raised if patron not found in library"""
+
+
+class LibraryItemNotFound(Exception):
+    """Exception raised if library item not found in library"""
+
+
 class Library:
     """Library class: accepts, name, list of patrons and dict of items with their ids"""
 
     def __init__(self, name, patrons: [Patron], library_items: dict = None):
-        self.name, self.patrons = name, patrons
-        self.library_items = library_items if library_items else {}
+        self.name, self._patrons = name, patrons
+        self._library_items = library_items if library_items else {}
 
-    def show_members(self) -> None:
-        """Prints all patrons of the library"""
-        for member in self.patrons:
-            print(f"{member.name}:\t{member.category} ")
+    @property
+    def library_items(self):
+        """library items attribute"""
+        return self._library_items
+
+    @property
+    def patrons(self):
+        """Base patrons category"""
+        return self._patrons
+
+    @patrons.getter
+    def patrons(self):
+        """returns a dict with every patron as {name: category}"""
+        patron_dict = {}
+        for patron in self._patrons:
+            patron_dict[patron.name] = patron.category
+        return patron_dict
+
+    @patrons.deleter
+    def patrons(self):
+        raise DeleteAttributeException("You are not allowed to delete the patron list!")
 
     def show_catalog(self) -> None:
         """Prints all library Items"""
@@ -36,36 +65,34 @@ class Library:
             self.add_item(library_item)
         return True
 
-    def remove_item(self, item_to_remove: LibraryItem) -> bool:
+    def remove_item(self, item_to_remove: LibraryItem) -> None:
         """remove one item from library"""
         try:
             del self.library_items[id(item_to_remove)]
             print(f"{item_to_remove} removed")
-            return True
-        except KeyError:
-            print(f"{item_to_remove.type} not found")
-            return False
+        except KeyError as err:
+            raise LibraryItemNotFound from err
 
     def add_patron(self, member: Patron) -> bool:
         """Add one patron to the library"""
-        self.patrons.append(member)
+        self._patrons.append(member)
         print(f"{member.name} has joined the Library")
         return True
 
     def add_patrons(self, patron_list: [Patron]) -> bool:
         """Add multiple patrons as an array to the Library"""
         for patron in patron_list:
-            self.patrons.append(patron)
+            self._patrons.append(patron)
             print(f"{patron.name} has joined the Library")
         return True
 
-    def remove_patron(self, patron_name: str) -> bool:
+    def remove_patron(self, patron_name: str) -> None:
         """Remove one patron from the library"""
-        for patron in self.patrons:
+        for patron in self._patrons:
             if patron.name.lower() == patron_name.lower():
-                self.patrons.remove(patron)
-                return True
-        return False
+                self._patrons.remove(patron)
+                return
+        raise PatronNotFound(f"{patron_name} not found in {self.name}")
 
     def search_library(self, query: str) -> [LibraryItem]:
         """Search all items in the library to match a string"""
@@ -73,7 +100,8 @@ class Library:
         for library_item in self.library_items.values():
             if library_item.match_string(query):
                 result.append(library_item)
-                print(library_item.name)
+        if len(result) == 0:
+            raise LibraryItemNotFound(f"No item in library matches {query}")
         return result
 
     def borrow_item(self, item_to_borrow: LibraryItem, borrower: Patron) -> bool:
@@ -81,11 +109,11 @@ class Library:
         if item_to_borrow.borrowed_status:
             print(f"This {item_to_borrow.type} is currently checked out!")
             return False
-        if borrower not in self.patrons:
+        if borrower.name not in self.patrons:
             print(f"{borrower.name} not a registerd Patron")
             return False
         item_to_borrow.time_borrowed = datetime.now()
-        item_to_borrow.borrower = borrower
+        item_to_borrow.change_borrower(borrower)
         item_to_borrow.borrowed_status = True
         Transaction(
             borrower.name,
@@ -96,11 +124,10 @@ class Library:
         print(f"{borrower.name} checked out {item_to_borrow.name}")
         return True
 
-    def return_item(self, item_to_return: LibraryItem) -> bool:
+    def return_item(self, item_to_return: LibraryItem) -> None:
         """Return library item to library."""
         time_returned = datetime.now()
         time_borrowed = (time_returned - item_to_return.time_borrowed).microseconds
-        print(time_borrowed)
         if time_borrowed > item_to_return.borrowing_period:
             fine = item_to_return.fine * (
                 time_borrowed - item_to_return.borrowing_period
@@ -110,14 +137,14 @@ class Library:
                 f"{item_to_return.borrower.name} has returned this {item_to_return.type}"
                 f" late and for that {item_to_return.borrower.name} must pay a ${fine} fine!"
             )
-            item_to_return.borrower._fines += fine
+            item_to_return.borrower.add_fine(fine)
         item_to_return.borrowed_status = False
+        item_to_return.time_borrowed = None
         Transaction(
             item_to_return.borrower.name,
             item_to_return.name,
             Actions.RETURNED.value,
             datetime.now(),
         ).send_to_csv()
-        item_to_return.borrower = None
+        item_to_return.change_borrower()
         print(f"{item_to_return.name} returned")
-        return True

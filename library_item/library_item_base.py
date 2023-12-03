@@ -1,5 +1,6 @@
 """Base Library Item """
 import abc
+from patrons.patron_base import Patron, ProtectedAttribute
 
 
 class DeleteBorrowingPeriodError(Exception):
@@ -22,13 +23,14 @@ class LibraryItem(abc.ABC):
             self._fine,
             self._borrowing_period,
             self.borrowed_status,
-        ) = (
-            name,
-            item_type,
-            fine,
-            borrowing_period,
-            False,
-        )
+            self._borrower,
+            self.time_borrowed,
+        ) = (name, item_type, fine, borrowing_period, False, None, None)
+
+    @property
+    def borrower(self):
+        """Patron currently borrowing this item. None if not being borrowed"""
+        return self._borrower
 
     @property
     def borrowing_period(self):
@@ -41,7 +43,7 @@ class LibraryItem(abc.ABC):
 
     @borrowing_period.deleter
     def borrowing_period(self):
-        raise DeleteBorrowingPeriodError("Cannot Delete Borrowing")
+        raise DeleteBorrowingPeriodError("Cannot Delete Borrowing Period")
 
     @property
     def fine(self):
@@ -56,13 +58,19 @@ class LibraryItem(abc.ABC):
     def fine(self):
         self._borrowing_period = 0
 
-    def update_item(self, attribute_to_edit: str, new_value: str) -> bool:
+    def change_borrower(self, borrower: Patron = None):
+        """Change borrrower or set to None if book is returned"""
+        if self._borrower and borrower:
+            raise ProtectedAttribute("Item must be returned first")
+        self._borrower = borrower
+
+    def update_item(self, attribute_to_edit: str, new_value: str) -> None:
         """Change valid attributes of a library item"""
         for item_attribute in vars(self).keys():
             if item_attribute.lower() == attribute_to_edit.lower():
                 setattr(self, item_attribute, new_value)
-                return True
-        return False
+                return
+        raise AttributeError
 
     def match_string(self, query) -> bool:
         """Check if query string matches any attribute of item for search"""

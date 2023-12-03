@@ -17,9 +17,7 @@ def run_library():
 
     L.add_patrons(patron_list=[teach2, stu1, stu2, stu3])
     print("Members:")
-    L.show_members()
     print("\n\n\n")
-    # time.sleep(3)
     b1 = Book("Pride & Prejudice", "Jane Austin", "drama", 30, 30)
     b2 = Book("Dune", "Frank Herbert", "Sci-Fi", 100, 20)
     b3 = Book("The Odyssey", "Homer", "greek", 500, 10)
@@ -32,18 +30,8 @@ def run_library():
     c4 = Disk("Swimming", "Mac Miller", "Rap", 5, 100)
 
     L.add_items(library_item_list=[b1, b2, b3, b4, b5, c1, c2, c3, c4])
-    # time.sleep(2)
-    # print("Catalog:")
-    # L.show_catalog()
-    # print("\n\n\n")
-    # time.sleep(3)
-    # print("Searching the library for Homer... results:")
-    # L.search_library("homer")
     L.borrow_item(b1, stu1)
     print("\n\n\n")
-    # time.sleep(2)
-
-    # time.sleep(2)
     print("\n\n\n")
     L.return_item(b1)
     print(stu1.fines)
