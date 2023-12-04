@@ -3,10 +3,12 @@ from library.library import Library
 from patrons.student import Student
 from patrons.teacher import Teacher
 from library_item.book import Book
+from mongoengine import *
 from library_item.disk import Disk
 
 
 def run_library():
+    connect("localhost:27017")
     L = Library("DPL", [])
     teach1 = Teacher("steve", "math")
     teach2 = Teacher("Jack", "CS")

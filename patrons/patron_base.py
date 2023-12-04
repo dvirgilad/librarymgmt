@@ -1,9 +1,17 @@
 """Base Patron class"""
 import abc
+from enum import Enum
 
 
 class ProtectedAttribute(Exception):
     """If editing protected attribute"""
+
+
+class PatronTypes(Enum):
+    """Enum for types of patrons"""
+
+    STUDENT = "STUDENT"
+    TEACHER = "TEACHER"
 
 
 class Patron(abc.ABC):

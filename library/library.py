@@ -3,6 +3,7 @@ from datetime import datetime
 from library_item.library_item_base import LibraryItem
 from patrons.patron_base import Patron
 from transactions.transactions import Transaction, Actions
+from patrons.patron_model import PatronModel
 
 
 class DeleteAttributeException(Exception):
@@ -28,6 +29,14 @@ class Library:
     def library_items(self):
         """library items attribute"""
         return self._library_items
+
+    @library_items.getter
+    def library_items(self):
+        """return array of library items"""
+        library_items = []
+        for library_item in self._library_items.values():
+            library_items.append(library_item)
+        return library_items
 
     @property
     def patrons(self):
@@ -55,8 +64,8 @@ class Library:
 
     def add_item(self, library_item: LibraryItem) -> bool:
         """Add one item to library"""
-        self.library_items[id(library_item)] = library_item
-        print(f"added {library_item.name}")
+        self._library_items[id(library_item)] = library_item
+        library_item.db_model.save()
         return True
 
     def add_items(self, library_item_list: [LibraryItem]) -> bool:
@@ -73,17 +82,16 @@ class Library:
         except KeyError as err:
             raise LibraryItemNotFound from err
 
-    def add_patron(self, member: Patron) -> bool:
+    def add_patron(self, member: Patron) -> None:
         """Add one patron to the library"""
         self._patrons.append(member)
-        print(f"{member.name} has joined the Library")
-        return True
+        member.db_model.save()
 
     def add_patrons(self, patron_list: [Patron]) -> bool:
         """Add multiple patrons as an array to the Library"""
         for patron in patron_list:
-            self._patrons.append(patron)
-            print(f"{patron.name} has joined the Library")
+            self.add_patron(patron)
+
         return True
 
     def remove_patron(self, patron_name: str) -> None:

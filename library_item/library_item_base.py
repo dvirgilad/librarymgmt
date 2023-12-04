@@ -1,10 +1,18 @@
 """Base Library Item """
 import abc
 from patrons.patron_base import Patron, ProtectedAttribute
+from enum import Enum
 
 
 class DeleteBorrowingPeriodError(Exception):
     """Error if user tries to delete the borrowing period"""
+
+
+class LibraryItemTypes(Enum):
+    """Enum for types of patrons"""
+
+    DISK = "DISK"
+    BOOK = "BOOK"
 
 
 class LibraryItem(abc.ABC):
