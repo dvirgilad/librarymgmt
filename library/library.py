@@ -135,12 +135,18 @@ class Library:
         item_to_borrow.time_borrowed = datetime.now()
         item_to_borrow.change_borrower(borrower)
         item_to_borrow.borrowed_status = True
+        # Transaction(
+        #     borrower.name,
+        #     item_to_borrow.name,
+        #     Actions.BORROWED.value,
+        #     item_to_borrow.time_borrowed,
+        # ).send_to_csv()
         Transaction(
             borrower.name,
             item_to_borrow.name,
             Actions.BORROWED.value,
             item_to_borrow.time_borrowed,
-        ).send_to_csv()
+        ).send_to_mongo()
         print(f"{borrower.name} checked out {item_to_borrow.name}")
         return True
 
@@ -160,11 +166,17 @@ class Library:
             item_to_return.borrower.add_fine(fine)
         item_to_return.borrowed_status = False
         item_to_return.time_borrowed = None
+        # Transaction(
+        #     item_to_return.borrower.name,
+        #     item_to_return.name,
+        #     Actions.RETURNED.value,
+        #     datetime.now(),
+        # ).send_to_csv()
         Transaction(
             item_to_return.borrower.name,
             item_to_return.name,
             Actions.RETURNED.value,
             datetime.now(),
-        ).send_to_csv()
+        ).send_to_mongo()
         item_to_return.change_borrower()
         print(f"{item_to_return.name} returned")
