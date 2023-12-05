@@ -41,7 +41,7 @@ class Transaction:
         )
         self.db_model = TransactionModel(
             patron=patron.db_model,
-            library_item=library_item.model,
+            library_item=library_item.db_model,
             action=action,
             timestamp=timestamp,
         )
@@ -60,4 +60,5 @@ class Transaction:
             )
 
     def send_to_mongo(self) -> None:
+        """Send transaction log to mongo"""
         self.db_model.save()

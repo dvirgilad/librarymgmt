@@ -142,8 +142,8 @@ class Library:
         #     item_to_borrow.time_borrowed,
         # ).send_to_csv()
         Transaction(
-            borrower.name,
-            item_to_borrow.name,
+            borrower,
+            item_to_borrow,
             Actions.BORROWED.value,
             item_to_borrow.time_borrowed,
         ).send_to_mongo()
@@ -173,8 +173,8 @@ class Library:
         #     datetime.now(),
         # ).send_to_csv()
         Transaction(
-            item_to_return.borrower.name,
-            item_to_return.name,
+            item_to_return.borrower,
+            item_to_return,
             Actions.RETURNED.value,
             datetime.now(),
         ).send_to_mongo()
