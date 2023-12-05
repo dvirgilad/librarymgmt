@@ -10,9 +10,8 @@ def test_add_library_item(test_library: Library):
     new_book = Book(
         name="MyBook", author="Me", genre="Horror", fine=150, borrowing_period=30
     )
-    add_book = test_library.add_item(new_book)
-    assert add_book is True
-    assert test_library.library_items[id(new_book)] == new_book
+    test_library.add_item(new_book)
+    assert new_book.db_model in test_library.library_items
 
 
 def test_add_multiple_library_item(test_library: Library):
@@ -23,9 +22,8 @@ def test_add_multiple_library_item(test_library: Library):
     new_disk = Disk(
         name="MyDisk", band="Me", genre="Punk", fine=150, borrowing_period=30
     )
-    add_library_items = test_library.add_items([new_book, new_disk])
-    assert add_library_items is True
-    assert len(test_library.library_items.keys()) == 2
+    test_library.add_items([new_book, new_disk])
+    assert len(test_library.library_items) == 2
 
 
 def test_remove_library_item(
@@ -36,9 +34,7 @@ def test_remove_library_item(
     assert id(test_book) not in test_library_with_patrons_and_items.library_items
 
 
-def test_remove_library_item_not_found(
-    test_library_with_patrons_and_items: Library, test_book: Book
-):
+def test_remove_library_item_not_found(test_library_with_patrons_and_items: Library):
     """Test if deleting an item that does not exist raises LibraryItemNotFound"""
     new_book = Book(
         name="MyBook2", author="Me", genre="Mystery", fine=150, borrowing_period=30

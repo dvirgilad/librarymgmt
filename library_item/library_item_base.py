@@ -71,6 +71,8 @@ class LibraryItem(abc.ABC):
         if self._borrower and borrower:
             raise ProtectedAttribute("Item must be returned first")
         self._borrower = borrower
+        self.db_model.borrower = borrower.db_model if borrower else None
+        self.db_model.save()
 
     def update_item(self, attribute_to_edit: str, new_value: str) -> None:
         """Change valid attributes of a library item"""

@@ -1,5 +1,6 @@
 """DB models for patrons"""
-from mongoengine import Document, StringField, IntField, FloatField
+from mongoengine import Document, StringField, IntField, FloatField, ReferenceField
+from library.library_model import LibraryModel
 
 
 class PatronModel(Document):
@@ -9,6 +10,8 @@ class PatronModel(Document):
     category = StringField()
     fines = IntField(0)
     discount = FloatField(0.0)
+    library = ReferenceField(LibraryModel)
+
     meta = {"allow_inheritance": True}
 
 

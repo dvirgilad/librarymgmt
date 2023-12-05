@@ -10,7 +10,6 @@ def test_add_teacher(test_library: Library):
     """Test adding a Teacher to the library"""
     test_teacher = Teacher(name="testTeacher", subject="test")
     add_teacher = test_library.add_patron(test_teacher)
-    assert add_teacher is True
     assert test_library.patrons[test_teacher.name] == test_teacher.category
 
 
@@ -18,7 +17,6 @@ def test_add_student(test_library: Library):
     """Test adding a Student to the library"""
     test_student = Student(name="testStudent", degree="test")
     add_student = test_library.add_patron(test_student)
-    assert add_student is True
     assert test_library.patrons[test_student.name] == test_student.category
 
 

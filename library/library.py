@@ -1,9 +1,11 @@
 """Library Class. Handles Patrons and library items"""
 from datetime import datetime
+from patrons.patron_model import PatronModel
 from library_item.library_item_base import LibraryItem
 from patrons.patron_base import Patron
 from transactions.transactions import Transaction, Actions
-from patrons.patron_model import PatronModel
+from library.library_model import LibraryModel
+from library_item.library_item_model import LibraryItemModel
 
 
 class DeleteAttributeException(Exception):
@@ -22,8 +24,13 @@ class Library:
     """Library class: accepts, name, list of patrons and dict of items with their ids"""
 
     def __init__(self, name, patrons: [Patron], library_items: dict = None):
-        self.name, self._patrons = name, patrons
+        self.name, self._patrons = name, []
         self._library_items = library_items if library_items else {}
+        self.db_model = LibraryModel(name=name).save()
+        for patron in patrons if patrons else []:
+            self.add_patron(patron)
+        for library_item in self._library_items.values():
+            self.add_item(library_item)
 
     @property
     def library_items(self):
@@ -34,9 +41,14 @@ class Library:
     def library_items(self):
         """return array of library items"""
         library_items = []
-        for library_item in self._library_items.values():
+        for library_item in LibraryItemModel.objects(library=self.db_model):
             library_items.append(library_item)
         return library_items
+
+    @library_items.setter
+    def library_items(self):
+        """return array of library items"""
+        raise DeleteAttributeException("Cannot edit library items")
 
     @property
     def patrons(self):
@@ -47,7 +59,8 @@ class Library:
     def patrons(self):
         """returns a dict with every patron as {name: category}"""
         patron_dict = {}
-        for patron in self._patrons:
+
+        for patron in PatronModel.objects(library=self.db_model):
             patron_dict[patron.name] = patron.category
         return patron_dict
 
@@ -62,11 +75,10 @@ class Library:
                 f"{library_item.name}\t\t\t {library_item.type}\t\t\t {library_item.genre}"
             )
 
-    def add_item(self, library_item: LibraryItem) -> bool:
+    def add_item(self, library_item: LibraryItem) -> None:
         """Add one item to library"""
-        self._library_items[id(library_item)] = library_item
+        library_item.db_model.library = self.db_model
         library_item.db_model.save()
-        return True
 
     def add_items(self, library_item_list: [LibraryItem]) -> bool:
         """Add multiple items as an array to library"""
@@ -77,14 +89,14 @@ class Library:
     def remove_item(self, item_to_remove: LibraryItem) -> None:
         """remove one item from library"""
         try:
-            del self.library_items[id(item_to_remove)]
-            print(f"{item_to_remove} removed")
+            del self._library_items[id(item_to_remove)]
+            item_to_remove.db_model.delete()
         except KeyError as err:
             raise LibraryItemNotFound from err
 
     def add_patron(self, member: Patron) -> None:
         """Add one patron to the library"""
-        self._patrons.append(member)
+        member.db_model.library = self.db_model
         member.db_model.save()
 
     def add_patrons(self, patron_list: [Patron]) -> bool:
@@ -96,16 +108,17 @@ class Library:
 
     def remove_patron(self, patron_name: str) -> None:
         """Remove one patron from the library"""
-        for patron in self._patrons:
-            if patron.name.lower() == patron_name.lower():
-                self._patrons.remove(patron)
-                return
-        raise PatronNotFound(f"{patron_name} not found in {self.name}")
+
+        remove_patron = PatronModel.objects(
+            name=patron_name, library=self.db_model
+        ).delete()
+        if remove_patron == 0:
+            raise PatronNotFound(f"{patron_name} not found in {self.name}")
 
     def search_library(self, query: str) -> [LibraryItem]:
         """Search all items in the library to match a string"""
         result = []
-        for library_item in self.library_items.values():
+        for library_item in self._library_items.values():
             if library_item.match_string(query):
                 result.append(library_item)
         if len(result) == 0:
@@ -118,8 +131,7 @@ class Library:
             print(f"This {item_to_borrow.type} is currently checked out!")
             return False
         if borrower.name not in self.patrons:
-            print(f"{borrower.name} not a registerd Patron")
-            return False
+            raise PatronNotFound(f"Patron {borrower.name} not a member of {self.name}")
         item_to_borrow.time_borrowed = datetime.now()
         item_to_borrow.change_borrower(borrower)
         item_to_borrow.borrowed_status = True

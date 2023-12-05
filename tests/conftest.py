@@ -6,6 +6,18 @@ from library.library import Library
 from library_item.disk import Disk
 from library_item.book import Book
 from datetime import datetime
+import mongomock
+from mongoengine import connect, disconnect
+from pytest import Config
+
+
+def pytest_configure(config):
+    """Initialize connection to mock DB"""
+    connect(
+        "mongoenginetest",
+        host="mongodb://localhost:27017",
+        mongo_client_class=mongomock.MongoClient,
+    )
 
 
 @pytest.fixture
