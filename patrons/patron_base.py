@@ -1,17 +1,14 @@
 """Base Patron class"""
 import abc
 from enum import Enum
-
-
-class ProtectedAttribute(Exception):
-    """If editing protected attribute"""
+from patrons.patron_model import StudentModel, TeacherModel
 
 
 class PatronTypes(Enum):
     """Enum for types of patrons"""
 
-    STUDENT = "STUDENT"
-    TEACHER = "TEACHER"
+    STUDENT = StudentModel
+    TEACHER = TeacherModel
 
 
 class Patron(abc.ABC):
@@ -24,34 +21,3 @@ class Patron(abc.ABC):
             0,
             fine_discount,
         )
-
-    @property
-    def category(self):
-        """Patron category attribute"""
-        return self._category
-
-    @category.setter
-    def category(self):
-        raise AttributeError
-
-    @property
-    def fines(self):
-        """fines accrued by a patron"""
-        return self._fines
-
-    @fines.getter
-    def fines(self):
-        """return fine amount with discount"""
-        return self._fines
-
-    @fines.setter
-    def fines(self, new_value):
-        raise ProtectedAttribute("You are not allowed to change fines!")
-
-    @fines.deleter
-    def fines(self):
-        raise ProtectedAttribute("You are not allowed to change fines!")
-
-    def add_fine(self, new_amount: int) -> None:
-        """Add fines to a patron"""
-        self._fines += new_amount * self.fine_discount

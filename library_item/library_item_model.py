@@ -1,7 +1,15 @@
 """DB models for library items"""
-from mongoengine import Document, StringField, IntField, BooleanField, ReferenceField
+from mongoengine import (
+    Document,
+    StringField,
+    IntField,
+    BooleanField,
+    ReferenceField,
+    DateField,
+)
 from patrons.patron_model import PatronModel
-from library.library_model import LibraryModel
+from pydantic import BaseModel
+from datetime import datetime
 
 
 class LibraryItemModel(Document):
@@ -10,11 +18,12 @@ class LibraryItemModel(Document):
     name = StringField(required=True)
     genre = StringField()
     fine = IntField(0)
+    category = StringField()
     borrowing_period = IntField(0)
-    borrowed_status = BooleanField()
+    borrowed_status = BooleanField(default=False)
     borrower = ReferenceField(PatronModel)
-    library = ReferenceField(LibraryModel)
-    meta = {"allow_inheritance": True}
+    borrowed_at = DateField(None)
+    meta = {"allow_inheritance": True, "fields": ["$name", "$genre", "$band", "$genre"]}
 
 
 class BookModel(LibraryItemModel):
@@ -27,3 +36,25 @@ class DiskModel(LibraryItemModel):
     """Teacher model for DB"""
 
     band = StringField()
+
+
+class LibraryItemBase(BaseModel):
+    """Library item basemodel"""
+
+    name: str
+    genre: str
+    fine: int
+    borrowing_period: int
+    borrowed_status: bool = False
+    borrower: str = None
+    borrowed_at: datetime | None = None
+
+
+class BookBase(LibraryItemBase):
+    category: str = "BOOK"
+    author: str
+
+
+class DiskBase(LibraryItemBase):
+    category: str = "DISK"
+    band: str

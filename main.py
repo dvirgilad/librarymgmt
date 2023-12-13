@@ -9,6 +9,7 @@ from library_item.disk import Disk
 
 def run_library():
     L = Library("DPL", [])
+    L.create_library
     teach1 = Teacher("steve", "math")
     teach2 = Teacher("Jack", "CS")
     stu1 = Student("bob", "Econ")

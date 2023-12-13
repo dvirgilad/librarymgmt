@@ -1,6 +1,6 @@
 """DB models for patrons"""
-from mongoengine import Document, StringField, IntField, FloatField, ReferenceField
-from library.library_model import LibraryModel
+from mongoengine import Document, StringField, IntField, FloatField
+from pydantic import BaseModel
 
 
 class PatronModel(Document):
@@ -9,8 +9,7 @@ class PatronModel(Document):
     name = StringField(required=True)
     category = StringField()
     fines = IntField(0)
-    discount = FloatField(0.0)
-    library = ReferenceField(LibraryModel)
+    fine_discount = FloatField(0.0)
 
     meta = {"allow_inheritance": True}
 
@@ -25,3 +24,25 @@ class TeacherModel(PatronModel):
     """Teacher model for DB"""
 
     subject = StringField()
+
+
+class PatronBase(BaseModel):
+    """Base patron object"""
+
+    name: str
+    fine_discount: float
+    fines: float
+
+
+class StudentBase(PatronBase):
+    """base student object"""
+
+    category: str = "STUDENT"
+    degree: str
+
+
+class TeacherBase(PatronBase):
+    """base teacher object"""
+
+    category: str = "TEACHER"
+    subject: str

@@ -9,13 +9,6 @@ class Teacher(Patron):
     def __init__(self, name: str, subject: str):
         teacher_fine_discount = 0.5
         super().__init__(
-            name, PatronTypes.TEACHER.value, fine_discount=teacher_fine_discount
+            name, PatronTypes.TEACHER.name, fine_discount=teacher_fine_discount
         )
         self.subject = subject
-        self.db_model = TeacherModel(
-            name=name,
-            category=PatronTypes.TEACHER.value,
-            subject=subject,
-            fines=self.fines,
-            discount=self.fine_discount,
-        )
