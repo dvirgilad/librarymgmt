@@ -109,3 +109,43 @@ def test_update_patron_in_db(mocker):
     update_patron_info_in_db(test_patron_model, "name", "updated")
     assert test_patron_model.name == "updated"
     test_patron_model.delete()
+
+
+def test_get_patron_route(mocker, client, test_student_basemodel):
+    mocker.patch(
+        "patrons.patron_routes.get_patron", return_value=test_student_basemodel
+    )
+    model_json = test_student_basemodel.model_dump()
+    test_response = client.get("/patrons/12345")
+    assert test_response.status_code == 200
+    assert test_response.json()["name"] == model_json["name"]
+
+
+def test_get_all_patrons_route(mocker, client, test_student_basemodel):
+    mocker.patch(
+        "patrons.patron_routes.get_all_patrons",
+        return_value=[test_student_basemodel.model_dump_json()],
+    )
+    test_response = client.get("/patrons")
+    assert test_response.status_code == 200
+    assert len(test_response.json()) == 1
+
+
+def test_update_patron_route(mocker, client):
+    mock_patch = mocker.patch(
+        "patrons.patron_routes.update_patron",
+        return_value=None,
+    )
+    response = client.patch("/patrons/12345?attribute_to_edit=name&new_value=test")
+    mock_patch.assert_called_once_with("12345", "name", "test")
+    assert response.status_code == 200
+
+
+def test_remove_patron_route(mocker, client):
+    mock_delete = mocker.patch(
+        "patrons.patron_routes.remove_patron",
+        return_value=None,
+    )
+    response = client.delete("/patrons/12345")
+    mock_delete.assert_called_once_with("12345")
+    assert response.status_code == 200

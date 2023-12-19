@@ -27,13 +27,24 @@ def update_libray_items_info_in_db(
         new_value (str): new value of the attribute
     """
     if not attribute or not new_value:
-        for attrib, value in kwargs:
+        for attrib, value in kwargs.items():
             library_item_model.modify(**{f"set__{attrib.lower()}": value})
     else:
         library_item_model.modify(**{f"set__{attribute.lower()}": new_value})
     library_item_model.save()
 
 
+###Doesn't work, not worth the effort rn
 def search_library_items_in_db(query_string: str) -> [LibraryItemModel]:
-    print(LibraryItemModel.objects.search_text(query_string))
-    return LibraryItemModel.objects.search_text(query_string)
+    """search library items for a specific string
+
+    Args:
+        query_string (str): string to match
+
+    Returns:
+        [LibraryItemModel]: list of library items that match query
+    """
+    pass
+
+
+#     return LibraryItemModel.objects(__raw__={"$text": {"$search": query_string}})

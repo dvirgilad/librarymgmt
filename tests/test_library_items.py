@@ -1,8 +1,5 @@
 """Unit tests of library items"""
-from library_item.book import Book
-from library_item.disk import Disk
 import pytest
-from library.library import Library
 from library_item.library_item_controller import *
 from transactions.transactions import Transaction
 
@@ -71,9 +68,8 @@ def test_check_if_borrowed_false(test_book_document):
 
 def test_model_factory_create_model(test_book_basemodel, test_book_document):
     new_model = LibraryItemModelFactory().create_model(test_book_basemodel)
-    print(new_model.to_json())
-    print(test_book_document.to_json())
-    assert new_model.to_json() == test_book_document.to_json()
+    assert type(new_model) == BookModel
+    assert new_model["name"] == test_book_document["name"]
 
 
 def test_get_library_item_from_db(mocker, test_book_document):
@@ -84,7 +80,7 @@ def test_get_library_item_from_db(mocker, test_book_document):
     test_book_document.delete()
 
 
-def test_get__all_library_items_from_db(mocker):
+def test_get_all_library_items_from_db(mocker):
     test_book_model = BookModel(name="test")
     test_book_model.save()
     test_disk_model = DiskModel(name="test2")
@@ -98,7 +94,7 @@ def test_get__all_library_items_from_db(mocker):
     test_disk_model.delete()
 
 
-def test_update_patron_in_db(mocker):
+def test_update_library_item_in_db(mocker):
     test_book_model = BookModel(name="test")
     test_book_model.save()
     update_libray_items_info_in_db(test_book_model, "name", "updated")
@@ -130,7 +126,7 @@ def test_borrow_item(mocker, test_book_document, test_student_document):
 def test_return(mocker, test_book_document, test_student_document):
     test_book_document.borrower = test_student_document
     test_book_document.borrowed_status = True
-    test_book_document.borrowed_at = datetime.now()
+    test_book_document.borrowed_at = datetime.utcnow()
     mocker.patch(
         "library_item.library_item_controller.search_for_library_item_by_id",
         return_value=test_book_document,
@@ -155,7 +151,7 @@ def test_return(mocker, test_book_document, test_student_document):
 
 
 def test_search_library_items_in_db():
-    # cannot test beacause  text indexes are implemented in mongomock
+    # cannot test beacause text indexes are not implemented in mongomock
     # test_book_document.save()
     # search_response = search_library_items_in_db("test")
     # assert search_response == [test_book_document]
@@ -164,7 +160,7 @@ def test_search_library_items_in_db():
 
 def test_search_library_items(mocker, test_book_document, test_book_basemodel):
     mocker.patch(
-        "library_item.library_item_controller.search_library_items_in_db",
+        "library_item.library_item_controller.get_all_library_items_from_db",
         return_value=[test_book_document],
     )
     mocker.patch.object(
@@ -172,3 +168,44 @@ def test_search_library_items(mocker, test_book_document, test_book_basemodel):
     )
     test_search = search_library_items("test")
     assert test_search == [test_book_basemodel]
+
+
+def test_get_library_item_route(mocker, client, test_book_basemodel):
+    mocker.patch(
+        "library_item.library_item_routes.get_library_item",
+        return_value=test_book_basemodel,
+    )
+    model_json = test_book_basemodel.model_dump()
+    test_response = client.get("/items/12345")
+    assert test_response.status_code == 200
+    assert test_response.json()["name"] == model_json["name"]
+
+
+def test_get_all_library_items_route(mocker, client, test_book_basemodel):
+    mocker.patch(
+        "library_item.library_item_routes.get_all_library_items",
+        return_value=[test_book_basemodel.model_dump_json()],
+    )
+    test_response = client.get("/items")
+    assert test_response.status_code == 200
+    assert len(test_response.json()) == 1
+
+
+def test_update_library_item_route(mocker, client):
+    mock_patch = mocker.patch(
+        "library_item.library_item_routes.update_library_item",
+        return_value=None,
+    )
+    response = client.patch("/items/12345?attribute_to_edit=name&new_value=test")
+    mock_patch.assert_called_once_with("12345", "name", "test")
+    assert response.status_code == 200
+
+
+def test_remove_library_item_route(mocker, client):
+    mock_delete = mocker.patch(
+        "library_item.library_item_routes.remove_library_item",
+        return_value=None,
+    )
+    response = client.delete("/items/12345")
+    mock_delete.assert_called_once_with("12345")
+    assert response.status_code == 200

@@ -1,4 +1,6 @@
 """ Bussiness logic layer for patrons of library"""
+from mongoengine import ValidationError
+
 from patrons.patron_model import (
     PatronBase,
     PatronModel,
@@ -15,6 +17,7 @@ from patrons.patron_dal import (
     get_all_patrons_from_db,
 )
 from library.library import ProtectedAttribute
+import json
 
 
 class PatronNotFound(Exception):
@@ -51,13 +54,14 @@ class PatronModelFactory:
         Returns:
             _type_: patron basemodel
         """
+
         match patron_model.category:
             case PatronTypes.TEACHER.name:
-                patron_basemodel = TeacherBase(**patron_model.to_json())
+                patron_basemodel = TeacherBase(**patron_model.to_mongo().to_dict())
             case PatronTypes.STUDENT.name:
-                patron_basemodel = StudentBase(**patron_model.to_json())
+                patron_basemodel = StudentBase(**patron_model.to_mongo().to_dict())
             case default:
-                patron_basemodel = PatronBase(**patron_model.to_json())
+                patron_basemodel = PatronBase(**patron_model.to_mongo().to_dict())
         return patron_basemodel
 
 
@@ -72,7 +76,7 @@ def create_patron(patron: PatronBase) -> str:
     """
     db_model = PatronModelFactory().create_model(patron=patron)
     patron_id = add_to_db(db_model)
-    return patron_id
+    return str(patron_id)
 
 
 def search_for_patron(patron_id: str) -> PatronModel:
@@ -87,7 +91,10 @@ def search_for_patron(patron_id: str) -> PatronModel:
     Returns:
         PatronModel: patron document model
     """
-    patron_db_model = get_patron_from_db(patron_id)
+    try:
+        patron_db_model = get_patron_from_db(patron_id)
+    except ValidationError as exc:
+        raise PatronNotFound(f"patron with ID: {patron_id} not found in DB") from exc
     if patron_db_model is None:
         raise PatronNotFound(f"patron with ID: {patron_id} not found in DB")
     return patron_db_model
@@ -106,7 +113,6 @@ def get_patron(patron_id: str) -> PatronBase:
         PatronBase: patron basemodel
     """
     patron_db_model = search_for_patron(patron_id)
-
     patron_model = PatronModelFactory().create_basemodel(patron_db_model)
     return patron_model
 
@@ -136,7 +142,7 @@ def update_patron(patron_id: str, attribute: str, new_value: str) -> None:
     update_patron_info_in_db(patron_model, attribute, new_value)
 
 
-def get_all_patrons() -> [PatronModel]:
+def get_all_patrons() -> [PatronBase]:
     """returns an array of the basemodel of all patrons
 
     Returns:

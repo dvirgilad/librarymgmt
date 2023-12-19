@@ -3,3 +3,4 @@
 todo
 .coverage
 coverage.*
+venv/

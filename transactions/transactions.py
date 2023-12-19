@@ -59,4 +59,4 @@ class Transaction:
 
     def send_to_mongo(self) -> str:
         """Send transaction log to mongo"""
-        return add_to_db(self.db_model)
+        return str(add_to_db(self.db_model))

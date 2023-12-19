@@ -62,11 +62,13 @@ class LibraryItemModelFactory:
         """
         match library_item_model.category:
             case LibraryItemTypes.BOOK.name:
-                patron_basemodel = BookBase(**library_item_model.to_json())
+                patron_basemodel = BookBase(**library_item_model.to_mongo().to_dict())
             case LibraryItemTypes.DISK.name:
-                patron_basemodel = DiskBase(**library_item_model.to_json())
+                patron_basemodel = DiskBase(**library_item_model.to_mongo().to_dict())
             case default:
-                patron_basemodel = LibraryItemBase(**library_item_model.to_json())
+                patron_basemodel = LibraryItemBase(
+                    **library_item_model.to_mongo().to_dict()
+                )
         return patron_basemodel
 
 
@@ -84,7 +86,7 @@ def create_library_item(library_item: LibraryItemBase) -> str:
     if check_if_borrowed(library_item):
         raise InvalidLibraryItem("Library item cannot be borrowed when it is added")
     patron_id = add_to_db(db_model)
-    return patron_id
+    return str(patron_id)
 
 
 def search_for_library_item_by_id(item_id: str) -> LibraryItemModel:
@@ -107,9 +109,10 @@ def search_for_library_item_by_id(item_id: str) -> LibraryItemModel:
 
 def remove_library_item(item_id: str) -> None:
     """Checks if library item exists in db and deletes it
-
     Args:
         item_id (str): Item mongo id
+    Raises:
+        InvalidLibraryItem: raised if library item cannot be deleted
     """
     library_item_model = search_for_library_item_by_id(item_id)
     if check_if_borrowed(library_item_model):
@@ -155,7 +158,6 @@ def check_if_borrowed(library_item: LibraryItemModel) -> bool:
     Returns:
         bool: if borrowed or not
     """
-    print(library_item.borrower)
     if (
         library_item.borrowed_status
         or library_item.borrower is not None
@@ -171,12 +173,14 @@ def borrow_item(item_id: str, borrower_id: str) -> str:
     Args:
         item_id (str): ID of item to borrow
         borrower_id (str): ID of patron that is borrowing
+    Raises:
+        InvalidLibraryItem: raised if library item cannot be borrowed
     Returns:
         str: mongo id of transaction
     """
     patron_model = search_for_patron(borrower_id)
     item_model = search_for_library_item_by_id(item_id)
-    time_borrowed = datetime.now()
+    time_borrowed = datetime.utcnow()
     if check_if_borrowed(item_model):
         raise InvalidLibraryItem(f"Item with ID {item_id} is already borrowed!")
     update_libray_items_info_in_db(
@@ -208,7 +212,8 @@ def check_if_returned_late(
     Returns:
         int: amount of fines to add
     """
-    time_difference = timedelta(time_returned - library_item.borrowed_at).seconds
+
+    time_difference = (time_returned - library_item.borrowed_at).seconds
     if time_difference > library_item.borrowing_period:
         return time_difference * library_item.fine
     return 0
@@ -219,25 +224,31 @@ def return_library_item(item_id: str) -> str:
 
     Args:
         item_id (str): mongo id of library id
-
+    Raises:
+        InvalidLibraryItem: raised if library item is not checked out
     Returns:
         str: mongo id of transaction
     """
     item_model = search_for_library_item_by_id(item_id)
     patron_model = item_model.borrower
-    time_returned = datetime.now()
+    time_returned = datetime.utcnow()
     if not check_if_borrowed(item_model):
         raise InvalidLibraryItem(f"Item with ID {item_id} is not checked out")
     fines_to_add = check_if_returned_late(item_model, time_returned)
+    fines_to_add_with_discount = fines_to_add - (
+        fines_to_add * patron_model.fine_discount
+    )
     update_libray_items_info_in_db(
         item_model,
         **{
             "borrower": None,
             "borrowed_status": False,
-            "borrowed_at": time_returned,
+            "borrowed_at": None,
         },
     )
-    update_patron_info_in_db(patron_model, "fines", patron_model.fines + fines_to_add)
+    update_patron_info_in_db(
+        patron_model, "fines", patron_model.fines + fines_to_add_with_discount
+    )
     transaction_id = Transaction(
         patron=patron_model,
         library_item=item_model,
@@ -265,9 +276,21 @@ def get_all_library_items() -> [LibraryItemBase]:
 
 
 def search_library_items(query_string: str) -> [LibraryItemBase]:
-    model_list = search_library_items_in_db(query_string)
+    """Query db for documents that match a string and convert them to basemodel
+
+    Args:
+        query_string (str): string to search for
+
+    Returns:
+        [LibraryItemBase]: array of library items that match query
+    """
+    model_list = get_all_library_items_from_db()
     response_list = []
     M = LibraryItemModelFactory()
     for item_model in model_list:
-        response_list.append(M.create_basemodel(item_model))
+        for value in item_model.to_mongo().to_dict().values():
+            if query_string.upper() in str(value).upper():
+                response_list.append(M.create_basemodel(item_model))
+                break
+
     return response_list

@@ -5,56 +5,81 @@ from mongoengine import (
     IntField,
     BooleanField,
     ReferenceField,
-    DateField,
+    DateTimeField,
+    DynamicDocument,
 )
-from patrons.patron_model import PatronModel
-from pydantic import BaseModel
+from patrons.patron_model import PatronModel, PyObjectId
+from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from datetime import datetime
+from typing import Annotated, Union
+from bson import ObjectId
 
 
-class LibraryItemModel(Document):
+def borrower_to_string(v: any):
+    if v is None:
+        return v
+    if isinstance(v, ObjectId):
+        return str(v)
+    return None
+
+
+class LibraryItemModel(DynamicDocument):
     """Library item model for DB"""
 
-    name = StringField(required=True)
-    genre = StringField()
+    name = StringField(required=True, index=True)
+    genre = StringField(index=True)
     fine = IntField(0)
-    category = StringField()
+    category = StringField(index=True)
     borrowing_period = IntField(0)
     borrowed_status = BooleanField(default=False)
     borrower = ReferenceField(PatronModel)
-    borrowed_at = DateField(None)
-    meta = {"allow_inheritance": True, "fields": ["$name", "$genre", "$band", "$genre"]}
+    borrowed_at = DateTimeField(default=None)
+    meta = {"allow_inheritance": True}
 
 
 class BookModel(LibraryItemModel):
     """Student model for DB"""
 
-    author = StringField()
+    author = StringField(index=True)
 
 
 class DiskModel(LibraryItemModel):
     """Teacher model for DB"""
 
-    band = StringField()
+    band = StringField(index=True)
 
 
-class LibraryItemBase(BaseModel):
-    """Library item basemodel"""
-
+class LibraryItem(BaseModel):
     name: str
     genre: str
     fine: int
     borrowing_period: int
     borrowed_status: bool = False
-    borrower: str = None
+    borrower: Annotated[Union[str, None], BeforeValidator(borrower_to_string)] = None
     borrowed_at: datetime | None = None
 
 
-class BookBase(LibraryItemBase):
+class Book(LibraryItem):
     category: str = "BOOK"
     author: str
 
 
-class DiskBase(LibraryItemBase):
+class Disk(LibraryItem):
     category: str = "DISK"
     band: str
+
+
+class LibraryItemBase(BaseModel):
+    """Library item basemodel"""
+
+    id: PyObjectId = Field(alias="_id", default=None)
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class BookBase(LibraryItemBase, Book):
+    pass
+
+
+class DiskBase(LibraryItemBase, Disk):
+    pass
