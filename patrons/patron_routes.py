@@ -39,7 +39,7 @@ def get_all_patrons_route(limit: int = 10, skip: int = 0) -> {}:
     Returns:
         {}: patron array
     """
-    return {"items": get_all_patrons(), "limit": limit, "skip": skip}
+    return {"items": get_all_patrons(limit, skip), "limit": limit, "skip": skip}
 
 
 @PATRON_ROUTER.post("/", response_model=str)
