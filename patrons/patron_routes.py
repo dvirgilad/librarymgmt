@@ -9,20 +9,20 @@ from patrons.patron_controller import (
     PatronNotFound,
     ProtectedAttribute,
 )
-from patrons.patron_model import Patron, Student, Teacher, StudentBase, TeacherBase
+from patrons.patron_model import Patron, PatronBase
 
 PATRON_ROUTER = APIRouter()
 
 
 @PATRON_ROUTER.get("/{patron_id}")
-def get_patron_route(patron_id: str) -> StudentBase | TeacherBase:
+def get_patron_route(patron_id: str) -> Patron:
     """Route to get a specific patron by ID
 
     Args:
         patron_id (str): the ID of the patron
 
     Returns:
-        Student | Teacher: Patron model
+        Patron: Patron model
     """
     try:
         return get_patron(patron_id)
@@ -33,17 +33,17 @@ def get_patron_route(patron_id: str) -> StudentBase | TeacherBase:
 
 
 @PATRON_ROUTER.get("/")
-def get_all_patrons_route() -> []:
+def get_all_patrons_route(limit: int = 10, skip: int = 0) -> {}:
     """Returns array of all patrons
 
     Returns:
-        [Patron]: patron array
+        {}: patron array
     """
-    return get_all_patrons()
+    return {"items": get_all_patrons(), "limit": limit, "skip": skip}
 
 
 @PATRON_ROUTER.post("/", response_model=str)
-def post_patron_route(patron: Student | Teacher) -> str:
+def post_patron_route(patron: PatronBase) -> str:
     """Route to create a patron
 
     Args:

@@ -8,9 +8,17 @@ def get_library_item_from_db(library_item_id: str) -> LibraryItemModel:
     return library_item_obj
 
 
-def get_all_library_items_from_db() -> [LibraryItemModel]:
-    """Returns all library Items from DB"""
-    return LibraryItemModel.objects().all()
+def get_all_library_items_from_db(limit: int, skip: int) -> [LibraryItemModel]:
+    """Gets all library items from DB
+
+    Args:
+        limit(int): how many results to return
+        skip(int): how many results to skip
+
+    Returns:
+        [LibraryItemModel]: array of library items to return
+    """
+    return LibraryItemModel.objects[skip:limit]
 
 
 def update_libray_items_info_in_db(
@@ -34,8 +42,9 @@ def update_libray_items_info_in_db(
     library_item_model.save()
 
 
-###Doesn't work, not worth the effort rn
-def search_library_items_in_db(query_string: str) -> [LibraryItemModel]:
+def search_library_items_in_db(
+    query_string: str, limit: int, skip: int
+) -> [LibraryItemModel]:
     """search library items for a specific string
 
     Args:
@@ -44,7 +53,5 @@ def search_library_items_in_db(query_string: str) -> [LibraryItemModel]:
     Returns:
         [LibraryItemModel]: list of library items that match query
     """
-    pass
-
-
-#     return LibraryItemModel.objects(__raw__={"$text": {"$search": query_string}})
+    print(1)
+    return LibraryItemModel.objects.search_text(query_string)[skip:limit]

@@ -1,6 +1,5 @@
 """Data access layer for patrons"""
 from patrons.patron_model import PatronModel
-from patrons.patron_base import Patron
 
 
 def get_patron_from_db(patron_id: str) -> PatronModel:
@@ -9,9 +8,9 @@ def get_patron_from_db(patron_id: str) -> PatronModel:
     return patron_obj
 
 
-def get_all_patrons_from_db() -> [PatronModel]:
+def get_all_patrons_from_db(limit: int, skip: int) -> [PatronModel]:
     """Returns all patrons from DB"""
-    return PatronModel.objects().all()
+    return PatronModel.objects[skip:limit]
 
 
 def update_patron_info_in_db(

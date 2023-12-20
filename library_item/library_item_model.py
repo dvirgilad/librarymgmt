@@ -1,4 +1,5 @@
 """DB models for library items"""
+from typing import Annotated, Union, Literal
 from mongoengine import (
     Document,
     StringField,
@@ -7,12 +8,12 @@ from mongoengine import (
     ReferenceField,
     DateTimeField,
     DynamicDocument,
+    DictField,
 )
+from bson import ObjectId
 from patrons.patron_model import PatronModel, PyObjectId
 from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
 from datetime import datetime
-from typing import Annotated, Union
-from bson import ObjectId
 
 
 def borrower_to_string(v: any):
@@ -26,60 +27,40 @@ def borrower_to_string(v: any):
 class LibraryItemModel(DynamicDocument):
     """Library item model for DB"""
 
-    name = StringField(required=True, index=True)
-    genre = StringField(index=True)
+    name = StringField(required=True)
+    genre = StringField()
     fine = IntField(0)
-    category = StringField(index=True)
+    category = StringField()
     borrowing_period = IntField(0)
     borrowed_status = BooleanField(default=False)
     borrower = ReferenceField(PatronModel)
     borrowed_at = DateTimeField(default=None)
-    meta = {"allow_inheritance": True}
+    library_item_attributes = DictField()
+    meta = {
+        "indexes": [
+            {
+                "name": "text_index",
+                "fields": ["$name", "$genre"],
+                "default_language": "none",
+                "weights": {"name": 5, "genre": 4},
+            }
+        ],
+    }
 
 
-class BookModel(LibraryItemModel):
-    """Student model for DB"""
-
-    author = StringField(index=True)
-
-
-class DiskModel(LibraryItemModel):
-    """Teacher model for DB"""
-
-    band = StringField(index=True)
-
-
-class LibraryItem(BaseModel):
+class LibraryItemBase(BaseModel):
     name: str
     genre: str
     fine: int
     borrowing_period: int
+    category: Literal["DISK", "BOOK"]
+    library_item_attributes: dict = {}
+
+
+class LibraryItem(LibraryItemBase):
     borrowed_status: bool = False
     borrower: Annotated[Union[str, None], BeforeValidator(borrower_to_string)] = None
     borrowed_at: datetime | None = None
-
-
-class Book(LibraryItem):
-    category: str = "BOOK"
-    author: str
-
-
-class Disk(LibraryItem):
-    category: str = "DISK"
-    band: str
-
-
-class LibraryItemBase(BaseModel):
-    """Library item basemodel"""
-
     id: PyObjectId = Field(alias="_id", default=None)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
-class BookBase(LibraryItemBase, Book):
-    pass
-
-
-class DiskBase(LibraryItemBase, Disk):
-    pass

@@ -1,12 +1,10 @@
 """ Bussiness logic layer for library items """
 from datetime import datetime, timedelta
+from fastapi import HTTPException
 from library_item.library_item_model import (
     LibraryItemModel,
     LibraryItemBase,
-    DiskModel,
-    BookModel,
-    DiskBase,
-    BookBase,
+    LibraryItem,
 )
 from library_item.library_item_base import LibraryItemTypes
 from library.library_dal import add_to_db, remove_from_db
@@ -33,7 +31,7 @@ class LibraryItemNotFound(Exception):
 class LibraryItemModelFactory:
     """Patron model factory class"""
 
-    def create_model(self, library_item: LibraryItemBase):
+    def create_model(self, library_item: LibraryItemBase) -> LibraryItemModel:
         """creates library_item document model from basemodel
 
         Args:
@@ -42,51 +40,36 @@ class LibraryItemModelFactory:
         Returns:
             _type_: library_item document model
         """
-        match library_item.category:
-            case LibraryItemTypes.BOOK.name:
-                db_model = BookModel(**library_item.model_dump())
-            case LibraryItemTypes.DISK.name:
-                db_model = DiskModel(**library_item.model_dump())
-            case default:
-                db_model = LibraryItemModel(**library_item.model_dump())
+
+        db_model = LibraryItemModel(**library_item.model_dump())
         return db_model
 
-    def create_basemodel(self, library_item_model: LibraryItemModel):
+    def create_basemodel(self, library_item_model: LibraryItemModel) -> LibraryItem:
         """generates library item basemodel from document model
 
         Args:
             patron_model (PatronModel): patron document model
 
         Returns:
-            _type_: patron basemodel
+            LibraryItem: patron basemodel
         """
-        match library_item_model.category:
-            case LibraryItemTypes.BOOK.name:
-                patron_basemodel = BookBase(**library_item_model.to_mongo().to_dict())
-            case LibraryItemTypes.DISK.name:
-                patron_basemodel = DiskBase(**library_item_model.to_mongo().to_dict())
-            case default:
-                patron_basemodel = LibraryItemBase(
-                    **library_item_model.to_mongo().to_dict()
-                )
-        return patron_basemodel
+        library_item_basemodel = LibraryItem(**library_item_model.to_mongo().to_dict())
+        return library_item_basemodel
 
 
 def create_library_item(library_item: LibraryItemBase) -> str:
     """adds library item to db and returns its mongo ID
 
     Args:
-        library_item (LibraryItemBase): Library item basemodel
+        library_item (LibraryItem): Library item basemodel
 
     Returns:
         str: library items mongo ID
     """
 
     db_model = LibraryItemModelFactory().create_model(library_item=library_item)
-    if check_if_borrowed(library_item):
-        raise InvalidLibraryItem("Library item cannot be borrowed when it is added")
-    patron_id = add_to_db(db_model)
-    return str(patron_id)
+    item_id = add_to_db(db_model)
+    return str(item_id)
 
 
 def search_for_library_item_by_id(item_id: str) -> LibraryItemModel:
@@ -135,14 +118,14 @@ def update_library_item(item_id: str, attribute: str, new_value: str) -> None:
     update_libray_items_info_in_db(patron_model, attribute, new_value)
 
 
-def get_library_item(item_id: str) -> LibraryItemBase:
+def get_library_item(item_id: str) -> LibraryItem:
     """searches for library item and returns its basemodel
 
     Args:
         item_id (str): item mongo ID
 
     Returns:
-        LibraryItemBase: Item basemodel
+        LibraryItem: Item basemodel
     """
     item_model = search_for_library_item_by_id(item_id=item_id)
     item_basemodel = LibraryItemModelFactory().create_basemodel(item_model)
@@ -259,13 +242,17 @@ def return_library_item(item_id: str) -> str:
     return transaction_id
 
 
-def get_all_library_items() -> [LibraryItemBase]:
+def get_all_library_items(limit: int, skip: int) -> [LibraryItem]:
     """returns array of all library items
+    Args:
+        limit(int): how many results to return
+        skip(int): how many results to skip
 
     Returns:
-        [LibraryItemBase]: array of all library items in library
+        [LibraryItem]: array of all library items in library
     """
-    model_list = get_all_library_items_from_db()
+
+    model_list = get_all_library_items_from_db(limit, skip)
     response_list = []
     model_factory = LibraryItemModelFactory()
     for item_model in model_list:
@@ -275,22 +262,19 @@ def get_all_library_items() -> [LibraryItemBase]:
     return response_list
 
 
-def search_library_items(query_string: str) -> [LibraryItemBase]:
+def search_library_items(query_string: str, limit: int, skip: int) -> [LibraryItem]:
     """Query db for documents that match a string and convert them to basemodel
 
     Args:
         query_string (str): string to search for
+        limit(int): how many results to return
+        skip(int): how many results to skip
 
     Returns:
-        [LibraryItemBase]: array of library items that match query
+        [LibraryItemInternal]: array of library items that match query
     """
-    model_list = get_all_library_items_from_db()
-    response_list = []
+    result_list = []
     M = LibraryItemModelFactory()
-    for item_model in model_list:
-        for value in item_model.to_mongo().to_dict().values():
-            if query_string.upper() in str(value).upper():
-                response_list.append(M.create_basemodel(item_model))
-                break
-
-    return response_list
+    for library_item in search_library_items_in_db(query_string, limit, skip):
+        result_list.append(M.create_basemodel(library_item))
+    return result_list

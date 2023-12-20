@@ -12,12 +12,7 @@ from library_item.library_item_controller import (
     InvalidLibraryItem,
     ProtectedAttribute,
 )
-from library_item.library_item_model import (
-    Disk,
-    Book,
-    DiskBase,
-    BookBase,
-)
+from library_item.library_item_model import LibraryItem, LibraryItemBase
 
 
 LIBRARY_ITEM_ROUTER = APIRouter()
@@ -25,17 +20,27 @@ LIBRARY_ACTIONS_ROUTER = APIRouter()
 
 
 @LIBRARY_ITEM_ROUTER.get("/")
-def get_all_library_items_route() -> []:
-    """returns array of all library items
+def get_all_library_items_route(limit: int = 10, skip: int = 0) -> {}:
+    """Returns all library items
+    Args:
+        limit(int): how many results to return
+        skip(int): how many results to skip
+
+    Raises:
+        HTTPException: _description_
 
     Returns:
-        []: Array of Library items in DB
+        {}: dict of results
     """
-    return get_all_library_items()
+    if limit < 1 or skip < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid limit or skip"
+        )
+    return {"items": get_all_library_items(limit, skip), "limit": limit, "skip": skip}
 
 
 @LIBRARY_ITEM_ROUTER.get("/{item_id}")
-def get_library_item_route(item_id: str) -> DiskBase | BookBase:
+def get_library_item_route(item_id: str) -> LibraryItem:
     """Get a library item by id
 
     Args:
@@ -45,7 +50,7 @@ def get_library_item_route(item_id: str) -> DiskBase | BookBase:
         HTTPException: Librray item not found
 
     Returns:
-        DiskBase | BookBase: libray item model
+        LibraryItem: libray item model
     """
     try:
         return get_library_item(item_id)
@@ -57,11 +62,11 @@ def get_library_item_route(item_id: str) -> DiskBase | BookBase:
 
 
 @LIBRARY_ITEM_ROUTER.post("/")
-def post_library_item_route(library_item: Book | Disk) -> str:
+def post_library_item_route(library_item: LibraryItemBase) -> str:
     """Route to create a library item
 
     Args:
-        library_item (Book | Disk): library item
+        library_item (LibraryItemBase): library item to add
 
     Returns:
         str: library item ID
@@ -163,13 +168,23 @@ def return_item_route(item_id: str) -> str:
 
 
 @LIBRARY_ACTIONS_ROUTER.get("/search/{query_string}")
-def search_library_items_route(query_string: str) -> []:
+def search_library_items_route(query_string: str, limit: int = 10, skip: int = 0) -> {}:
     """route to search for library item by a string
 
     Args:
         query_string (str): string to search for
+        limit(int): how many results to return
+        skip(int): how many results to skip
 
     Returns:
-        [LibraryItemBase]: Array of all library items that match query
+        [LibraryItemInternal]: Array of all library items that match query
     """
-    return search_library_items(query_string)
+    if limit < 1 or skip < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid limit or skip"
+        )
+    return {
+        "items": search_library_items(query_string, limit, skip),
+        "limit": limit,
+        "skip": skip,
+    }

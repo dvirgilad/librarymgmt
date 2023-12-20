@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 import uvicorn
 from mongoengine import connect, disconnect, DEFAULT_CONNECTION_NAME
+import os
 
 from patrons.patron_routes import PATRON_ROUTER
 from library_item.library_item_routes import LIBRARY_ITEM_ROUTER, LIBRARY_ACTIONS_ROUTER

@@ -92,7 +92,7 @@ def test_get_all_patrons_from_db(mocker):
     test_patron_model.save()
     test_patron_model2 = PatronModel(name="test2")
     test_patron_model2.save()
-    all_patrons = get_all_patrons_from_db()
+    all_patrons = get_all_patrons_from_db(2, 0)
 
     assert [patron.id for patron in all_patrons] == [
         test_patron_model.id,
@@ -128,7 +128,7 @@ def test_get_all_patrons_route(mocker, client, test_student_basemodel):
     )
     test_response = client.get("/patrons")
     assert test_response.status_code == 200
-    assert len(test_response.json()) == 1
+    assert len(test_response.json()["items"]) == 1
 
 
 def test_update_patron_route(mocker, client):

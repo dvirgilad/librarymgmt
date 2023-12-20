@@ -68,7 +68,7 @@ def test_check_if_borrowed_false(test_book_document):
 
 def test_model_factory_create_model(test_book_basemodel, test_book_document):
     new_model = LibraryItemModelFactory().create_model(test_book_basemodel)
-    assert type(new_model) == BookModel
+    assert type(new_model) == LibraryItemModel
     assert new_model["name"] == test_book_document["name"]
 
 
@@ -81,11 +81,11 @@ def test_get_library_item_from_db(mocker, test_book_document):
 
 
 def test_get_all_library_items_from_db(mocker):
-    test_book_model = BookModel(name="test")
+    test_book_model = LibraryItemModel(name="test")
     test_book_model.save()
-    test_disk_model = DiskModel(name="test2")
+    test_disk_model = LibraryItemModel(name="test2")
     test_disk_model.save()
-    all_items = get_all_library_items_from_db()
+    all_items = get_all_library_items_from_db(2, 0)
     assert [library_item.id for library_item in all_items] == [
         test_book_model.id,
         test_disk_model.id,
@@ -95,7 +95,7 @@ def test_get_all_library_items_from_db(mocker):
 
 
 def test_update_library_item_in_db(mocker):
-    test_book_model = BookModel(name="test")
+    test_book_model = LibraryItemModel(name="test")
     test_book_model.save()
     update_libray_items_info_in_db(test_book_model, "name", "updated")
     assert test_book_model.name == "updated"
@@ -160,13 +160,13 @@ def test_search_library_items_in_db():
 
 def test_search_library_items(mocker, test_book_document, test_book_basemodel):
     mocker.patch(
-        "library_item.library_item_controller.get_all_library_items_from_db",
+        "library_item.library_item_controller.search_library_items_in_db",
         return_value=[test_book_document],
     )
     mocker.patch.object(
         LibraryItemModelFactory, "create_basemodel", return_value=test_book_basemodel
     )
-    test_search = search_library_items("test")
+    test_search = search_library_items("test", 1, 0)
     assert test_search == [test_book_basemodel]
 
 
@@ -188,7 +188,7 @@ def test_get_all_library_items_route(mocker, client, test_book_basemodel):
     )
     test_response = client.get("/items")
     assert test_response.status_code == 200
-    assert len(test_response.json()) == 1
+    assert len(test_response.json()["items"]) == 1
 
 
 def test_update_library_item_route(mocker, client):

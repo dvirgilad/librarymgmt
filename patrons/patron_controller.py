@@ -1,23 +1,15 @@
 """ Bussiness logic layer for patrons of library"""
 from mongoengine import ValidationError
 
-from patrons.patron_model import (
-    PatronBase,
-    PatronModel,
-    TeacherModel,
-    StudentModel,
-    TeacherBase,
-    StudentBase,
-)
-from patrons.patron_base import PatronTypes
-from library.library_dal import add_to_db, remove_from_db
+from patrons.patron_model import Patron, PatronBase, PatronModel
 from patrons.patron_dal import (
     get_patron_from_db,
     update_patron_info_in_db,
     get_all_patrons_from_db,
 )
+
+from library.library_dal import add_to_db, remove_from_db
 from library.library import ProtectedAttribute
-import json
 
 
 class PatronNotFound(Exception):
@@ -36,13 +28,8 @@ class PatronModelFactory:
         Returns:
             _type_: patron document model
         """
-        match patron.category:
-            case PatronTypes.TEACHER.name:
-                db_model = TeacherModel(**patron.model_dump())
-            case PatronTypes.STUDENT.name:
-                db_model = StudentModel(**patron.model_dump())
-            case default:
-                db_model = PatronModel(**patron.model_dump())
+
+        db_model = PatronModel(**patron.model_dump())
         return db_model
 
     def create_basemodel(self, patron_model: PatronModel):
@@ -52,16 +39,10 @@ class PatronModelFactory:
             patron_model (PatronModel): patron document model
 
         Returns:
-            _type_: patron basemodel
+            Patron: patron basemodel
         """
 
-        match patron_model.category:
-            case PatronTypes.TEACHER.name:
-                patron_basemodel = TeacherBase(**patron_model.to_mongo().to_dict())
-            case PatronTypes.STUDENT.name:
-                patron_basemodel = StudentBase(**patron_model.to_mongo().to_dict())
-            case default:
-                patron_basemodel = PatronBase(**patron_model.to_mongo().to_dict())
+        patron_basemodel = Patron(**patron_model.to_mongo().to_dict())
         return patron_basemodel
 
 
@@ -142,13 +123,13 @@ def update_patron(patron_id: str, attribute: str, new_value: str) -> None:
     update_patron_info_in_db(patron_model, attribute, new_value)
 
 
-def get_all_patrons() -> [PatronBase]:
+def get_all_patrons(limit: int, skip: int) -> [PatronBase]:
     """returns an array of the basemodel of all patrons
 
     Returns:
         [PatronModel]: array of basemodel of all patrons
     """
-    model_list = get_all_patrons_from_db()
+    model_list = get_all_patrons_from_db(limit, skip)
     response_list = []
     model_factory = PatronModelFactory()
     for patron_model in model_list:

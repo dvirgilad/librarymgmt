@@ -1,5 +1,6 @@
 """DB models for patrons"""
-from mongoengine import Document, StringField, IntField, FloatField
+from typing import Annotated, Any, Union, Literal
+from mongoengine import Document, StringField, IntField, FloatField, DictField
 from pydantic import (
     BaseModel,
     Field,
@@ -10,7 +11,6 @@ from pydantic import (
 )
 from bson import ObjectId
 from pydantic_core import core_schema
-from typing import Annotated, Any, Union
 from pydantic.json_schema import JsonSchemaValue
 
 
@@ -48,51 +48,22 @@ class PatronModel(Document):
     category = StringField()
     fines = IntField(0)
     fine_discount = FloatField(0.0)
-
-    meta = {"allow_inheritance": True}
-
-
-class StudentModel(PatronModel):
-    """Student model for DB"""
-
-    degree = StringField()
+    patron_attributes = DictField()
 
 
-class TeacherModel(PatronModel):
-    """Teacher model for DB"""
-
-    subject = StringField()
-
-
-class Patron(BaseModel):
+class PatronBase(BaseModel):
     """class all patrons inherit from"""
 
     name: str
     fine_discount: float
     fines: float
+    category: Literal["TEACHER", "STUDENT"]
+    patron_attributes: dict = {}
 
 
-class Teacher(Patron):
-    category: str = "TEACHER"
-    subject: str
-
-
-class Student(Patron):
-    category: str = "STUDENT"
-    degree: str
-
-
-class PatronBase(Patron):
+class Patron(PatronBase):
     """Base patron object"""
 
     id: PyObjectId = Field(alias="_id", default=None)
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
-
-class StudentBase(PatronBase, Student):
-    """base student object"""
-
-
-class TeacherBase(PatronBase, Teacher):
-    """base teacher object"""
