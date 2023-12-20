@@ -1,74 +1,211 @@
 """Unit tests of library items"""
-from library_item.book import Book
-from library_item.disk import Disk
 import pytest
-from library.library import Library, LibraryItemNotFound
+from library_item.library_item_controller import *
+from transactions.transactions import Transaction
 
 
-def test_add_library_item(test_library: Library):
+def test_add_library_item(mocker, test_book_basemodel, test_book_document):
     """Add a book to the library"""
-    new_book = Book(
-        name="MyBook", author="Me", genre="Horror", fine=150, borrowing_period=30
+    mocker.patch.object(
+        LibraryItemModelFactory, "create_model", return_value=test_book_document
     )
-    add_book = test_library.add_item(new_book)
-    assert add_book is True
-    assert test_library.library_items[id(new_book)] == new_book
-
-
-def test_add_multiple_library_item(test_library: Library):
-    """Test adding multiple library items to library"""
-    new_book = Book(
-        name="MyBook", author="Me", genre="Horror", fine=150, borrowing_period=30
+    mocker.patch("library_item.library_item_controller.add_to_db", return_value="12345")
+    mocker.patch(
+        "library_item.library_item_controller.check_if_borrowed", return_value=False
     )
-    new_disk = Disk(
-        name="MyDisk", band="Me", genre="Punk", fine=150, borrowing_period=30
-    )
-    add_library_items = test_library.add_items([new_book, new_disk])
-    assert add_library_items is True
-    assert len(test_library.library_items.keys()) == 2
+    book_id = create_library_item(test_book_basemodel)
+    assert book_id == "12345"
 
 
-def test_remove_library_item(
-    test_library_with_patrons_and_items: Library, test_book: Book
-):
+def test_remove_library_item(mocker, test_book_basemodel, test_book_document):
     """Test removing an item from the library"""
-    test_library_with_patrons_and_items.remove_item(test_book)
-    assert id(test_book) not in test_library_with_patrons_and_items.library_items
-
-
-def test_remove_library_item_not_found(
-    test_library_with_patrons_and_items: Library, test_book: Book
-):
-    """Test if deleting an item that does not exist raises LibraryItemNotFound"""
-    new_book = Book(
-        name="MyBook2", author="Me", genre="Mystery", fine=150, borrowing_period=30
+    mocker.patch(
+        "library_item.library_item_controller.search_for_library_item_by_id",
+        return_value=test_book_document,
     )
-    with pytest.raises(LibraryItemNotFound):
-        test_library_with_patrons_and_items.remove_item(new_book)
+    mocker.patch(
+        "library_item.library_item_controller.check_if_borrowed", return_value=False
+    )
+    mock_delete = mocker.patch(
+        "library_item.library_item_controller.remove_from_db", return_value=None
+    )
+
+    remove_library_item(test_book_basemodel)
+    mock_delete.assert_called_once_with(test_book_document)
 
 
-def test_update_library_item():
+def test_update_library_item(mocker, test_book_document):
     """Test editing a library item"""
-    to_edit = Book(
-        name="MyBook", author="Me", genre="Horror", fine=150, borrowing_period=30
+    mocker.patch(
+        "library_item.library_item_controller.search_for_library_item_by_id",
+        return_value=test_book_document,
     )
-    to_edit.update_item(attribute_to_edit="genre", new_value="SciFi")
-    assert to_edit.genre == "SciFi"
-
-
-def test_match_string():
-    """Test searching for a string in a library item"""
-    to_search = Book(
-        name="MyBook", author="Me", genre="Horror", fine=150, borrowing_period=30
+    mock_edit = mocker.patch(
+        "library_item.library_item_controller.update_libray_items_info_in_db",
+        return_value=None,
     )
-    match_string = to_search.match_string("Me")
-    assert match_string is True
+    update_library_item("12345", "genre", "scifi")
+    mock_edit.assert_called_once_with(test_book_document, "genre", "scifi")
 
 
-def test_fail_match_string():
-    """Test searching for a string that does not exist in a library item"""
-    to_search = Disk(
-        name="MyDisk", band="Me", genre="Punk", fine=150, borrowing_period=30
+def test_get_library_item(mocker, test_book_basemodel, test_book_document):
+    mocker.patch(
+        "library_item.library_item_controller.search_for_library_item_by_id",
+        return_value=test_book_document,
     )
-    match_string = to_search.match_string("123123")
-    assert match_string is False
+    mocker.patch.object(
+        LibraryItemModelFactory, "create_basemodel", return_value=test_book_basemodel
+    )
+
+    test_model = get_library_item("12345")
+    assert test_model == test_book_basemodel
+
+
+def test_check_if_borrowed_false(test_book_document):
+    test_check = check_if_borrowed(test_book_document)
+    assert test_check is False
+
+
+def test_model_factory_create_model(test_book_basemodel, test_book_document):
+    new_model = LibraryItemModelFactory().create_model(test_book_basemodel)
+    assert type(new_model) == BookModel
+    assert new_model["name"] == test_book_document["name"]
+
+
+def test_get_library_item_from_db(mocker, test_book_document):
+    test_book_document.save()
+    get_item = get_library_item_from_db(test_book_document.id)
+    assert get_item.to_json() == test_book_document.to_json()
+    ## Have to delete library items for other tests because data persists between tests
+    test_book_document.delete()
+
+
+def test_get_all_library_items_from_db(mocker):
+    test_book_model = BookModel(name="test")
+    test_book_model.save()
+    test_disk_model = DiskModel(name="test2")
+    test_disk_model.save()
+    all_items = get_all_library_items_from_db()
+    assert [library_item.id for library_item in all_items] == [
+        test_book_model.id,
+        test_disk_model.id,
+    ]
+    test_book_model.delete()
+    test_disk_model.delete()
+
+
+def test_update_library_item_in_db(mocker):
+    test_book_model = BookModel(name="test")
+    test_book_model.save()
+    update_libray_items_info_in_db(test_book_model, "name", "updated")
+    assert test_book_model.name == "updated"
+    test_book_model.delete()
+
+
+def test_borrow_item(mocker, test_book_document, test_student_document):
+    mocker.patch(
+        "library_item.library_item_controller.search_for_library_item_by_id",
+        return_value=test_book_document,
+    )
+    mocker.patch(
+        "library_item.library_item_controller.search_for_patron",
+        return_value=test_student_document,
+    )
+    mocker.patch(
+        "library_item.library_item_controller.check_if_borrowed", return_value=False
+    )
+    mocker.patch(
+        "library_item.library_item_controller.update_libray_items_info_in_db",
+        return_value=None,
+    )
+    mocker.patch.object(Transaction, "send_to_mongo", return_value="789")
+    transaction_id = borrow_item("123", "456")
+    assert transaction_id == "789"
+
+
+def test_return(mocker, test_book_document, test_student_document):
+    test_book_document.borrower = test_student_document
+    test_book_document.borrowed_status = True
+    test_book_document.borrowed_at = datetime.utcnow()
+    mocker.patch(
+        "library_item.library_item_controller.search_for_library_item_by_id",
+        return_value=test_book_document,
+    )
+    mocker.patch(
+        "library_item.library_item_controller.check_if_borrowed", return_value=True
+    )
+    mocker.patch(
+        "library_item.library_item_controller.check_if_returned_late", return_value=True
+    )
+    mocker.patch(
+        "library_item.library_item_controller.update_libray_items_info_in_db",
+        return_value=None,
+    )
+    mocker.patch(
+        "library_item.library_item_controller.update_patron_info_in_db",
+        return_value=None,
+    )
+    mocker.patch.object(Transaction, "send_to_mongo", return_value="789")
+    transaction_id = return_library_item("123")
+    assert transaction_id == "789"
+
+
+def test_search_library_items_in_db():
+    # cannot test beacause text indexes are not implemented in mongomock
+    # test_book_document.save()
+    # search_response = search_library_items_in_db("test")
+    # assert search_response == [test_book_document]
+    pass
+
+
+def test_search_library_items(mocker, test_book_document, test_book_basemodel):
+    mocker.patch(
+        "library_item.library_item_controller.get_all_library_items_from_db",
+        return_value=[test_book_document],
+    )
+    mocker.patch.object(
+        LibraryItemModelFactory, "create_basemodel", return_value=test_book_basemodel
+    )
+    test_search = search_library_items("test")
+    assert test_search == [test_book_basemodel]
+
+
+def test_get_library_item_route(mocker, client, test_book_basemodel):
+    mocker.patch(
+        "library_item.library_item_routes.get_library_item",
+        return_value=test_book_basemodel,
+    )
+    model_json = test_book_basemodel.model_dump()
+    test_response = client.get("/items/12345")
+    assert test_response.status_code == 200
+    assert test_response.json()["name"] == model_json["name"]
+
+
+def test_get_all_library_items_route(mocker, client, test_book_basemodel):
+    mocker.patch(
+        "library_item.library_item_routes.get_all_library_items",
+        return_value=[test_book_basemodel.model_dump_json()],
+    )
+    test_response = client.get("/items")
+    assert test_response.status_code == 200
+    assert len(test_response.json()) == 1
+
+
+def test_update_library_item_route(mocker, client):
+    mock_patch = mocker.patch(
+        "library_item.library_item_routes.update_library_item",
+        return_value=None,
+    )
+    response = client.patch("/items/12345?attribute_to_edit=name&new_value=test")
+    mock_patch.assert_called_once_with("12345", "name", "test")
+    assert response.status_code == 200
+
+
+def test_remove_library_item_route(mocker, client):
+    mock_delete = mocker.patch(
+        "library_item.library_item_routes.remove_library_item",
+        return_value=None,
+    )
+    response = client.delete("/items/12345")
+    mock_delete.assert_called_once_with("12345")
+    assert response.status_code == 200

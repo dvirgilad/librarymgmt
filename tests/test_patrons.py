@@ -1,57 +1,151 @@
 """Unit test for patrons"""
 import pytest
-from patrons.student import Student
-from patrons.teacher import Teacher
-from library.library import Library, PatronNotFound
-from patrons.patron_base import ProtectedAttribute
+from patrons.patron_controller import (
+    PatronNotFound,
+    create_patron,
+    PatronModelFactory,
+    search_for_patron,
+    remove_patron,
+    update_patron,
+)
+from patrons.patron_dal import (
+    get_all_patrons_from_db,
+    get_patron_from_db,
+    update_patron_info_in_db,
+)
+from patrons.patron_model import PatronModel
 
 
-def test_add_teacher(test_library: Library):
-    """Test adding a Teacher to the library"""
-    test_teacher = Teacher(name="testTeacher", subject="test")
-    add_teacher = test_library.add_patron(test_teacher)
-    assert add_teacher is True
-    assert test_library.patrons[test_teacher.name] == test_teacher.category
+def test_add_teacher(mocker, test_teacher_basemodel):
+    mocker.patch.object(
+        PatronModelFactory, "create_model", return_value=test_teacher_basemodel
+    )
+    mocker.patch("patrons.patron_controller.add_to_db", return_value="12345")
+    test_id = create_patron(test_teacher_basemodel)
+    assert test_id == "12345"
 
 
-def test_add_student(test_library: Library):
-    """Test adding a Student to the library"""
-    test_student = Student(name="testStudent", degree="test")
-    add_student = test_library.add_patron(test_student)
-    assert add_student is True
-    assert test_library.patrons[test_student.name] == test_student.category
+def test_add_student(mocker, test_student_basemodel):
+    mocker.patch.object(
+        PatronModelFactory, "create_model", return_value=test_student_basemodel
+    )
+    mocker.patch("patrons.patron_controller.add_to_db", return_value="12345")
+    test_id = create_patron(test_student_basemodel)
+    assert test_id == "12345"
 
 
-def test_add_multiple_teachers_and_students(test_library: Library):
-    """Test adding multiple patrons at once to the library"""
-    test_teacher = Teacher(name="testTeacher", subject="test")
-    test_student = Student(name="testStudent", degree="test")
-    test_library.add_patrons([test_student, test_teacher])
-    assert test_library.patrons[test_student.name] == test_student.category
-    assert test_library.patrons[test_teacher.name] == test_teacher.category
-
-
-def test_remove_patron(test_library_with_patrons: Library):
+def test_remove_patron(mocker):
     """Test removing a patron from the library"""
-    test_library_with_patrons.remove_patron("prePatron")
-    assert "prePatron" not in test_library_with_patrons.patrons
+    mocker.patch(
+        "patrons.patron_controller.search_for_patron", return_value={"name": "12345"}
+    )
+    patch_remove = mocker.patch(
+        "patrons.patron_controller.remove_from_db", return_value=None
+    )
+    remove_patron("12345")
+    patch_remove.assert_called_once_with({"name": "12345"})
 
 
-def test_remove_patron_not_found(test_library_with_patrons: Library):
-    """Test removing a patron that does not exist from the library"""
+def test_searching_for_patron(mocker, test_teacher_basemodel):
+    """test searching for patron that does exist"""
+    mocker.patch(
+        "patrons.patron_controller.get_patron_from_db",
+        return_value=test_teacher_basemodel,
+    )
+    get_patron = search_for_patron("DoesNotExist")
+    assert get_patron == test_teacher_basemodel
+
+
+def test_search_for_patron_not_found(mocker):
+    """test searching for patron that does not exist"""
+    mocker.patch("patrons.patron_controller.get_patron_from_db", return_value=None)
     with pytest.raises(PatronNotFound):
-        test_library_with_patrons.remove_patron("prePatron3")
+        search_for_patron("prePatron3")
 
 
-def test_edit_patron():
+def test_edit_patron(mocker, test_teacher_basemodel):
     """Test editing a patron"""
-    to_edit = Teacher(name="steve", subject="math")
-    to_edit.name = "bob"
-    assert to_edit.name == "bob"
+    mocker.patch(
+        "patrons.patron_controller.search_for_patron",
+        return_value=test_teacher_basemodel,
+    )
+    edit_patron = mocker.patch(
+        "patrons.patron_controller.update_patron_info_in_db", return_value=None
+    )
+    update_patron("12345", "test_attribute", "test_value")
+    edit_patron.assert_called_once_with(
+        test_teacher_basemodel, "test_attribute", "test_value"
+    )
 
 
-def test_edit_protected_patron_attribute():
-    """Test editing the patron fines"""
-    to_edit = Teacher(name="steve", subject="math")
-    with pytest.raises(ProtectedAttribute):
-        to_edit.fines = 500
+def test_get_patron_from_db(mocker):
+    test_patron_model = PatronModel(name="test")
+    test_patron_model.save()
+    get_patron = get_patron_from_db(test_patron_model.id)
+    assert get_patron.name == "test"
+    ## Have to delete patrons for other tests because data persists between tests
+    test_patron_model.delete()
+
+
+def test_get_all_patrons_from_db(mocker):
+    test_patron_model = PatronModel(name="test")
+    test_patron_model.save()
+    test_patron_model2 = PatronModel(name="test2")
+    test_patron_model2.save()
+    all_patrons = get_all_patrons_from_db()
+
+    assert [patron.id for patron in all_patrons] == [
+        test_patron_model.id,
+        test_patron_model2.id,
+    ]
+
+    test_patron_model.delete()
+    test_patron_model2.delete()
+
+
+def test_update_patron_in_db(mocker):
+    test_patron_model = PatronModel(name="test")
+    test_patron_model.save()
+    update_patron_info_in_db(test_patron_model, "name", "updated")
+    assert test_patron_model.name == "updated"
+    test_patron_model.delete()
+
+
+def test_get_patron_route(mocker, client, test_student_basemodel):
+    mocker.patch(
+        "patrons.patron_routes.get_patron", return_value=test_student_basemodel
+    )
+    model_json = test_student_basemodel.model_dump()
+    test_response = client.get("/patrons/12345")
+    assert test_response.status_code == 200
+    assert test_response.json()["name"] == model_json["name"]
+
+
+def test_get_all_patrons_route(mocker, client, test_student_basemodel):
+    mocker.patch(
+        "patrons.patron_routes.get_all_patrons",
+        return_value=[test_student_basemodel.model_dump_json()],
+    )
+    test_response = client.get("/patrons")
+    assert test_response.status_code == 200
+    assert len(test_response.json()) == 1
+
+
+def test_update_patron_route(mocker, client):
+    mock_patch = mocker.patch(
+        "patrons.patron_routes.update_patron",
+        return_value=None,
+    )
+    response = client.patch("/patrons/12345?attribute_to_edit=name&new_value=test")
+    mock_patch.assert_called_once_with("12345", "name", "test")
+    assert response.status_code == 200
+
+
+def test_remove_patron_route(mocker, client):
+    mock_delete = mocker.patch(
+        "patrons.patron_routes.remove_patron",
+        return_value=None,
+    )
+    response = client.delete("/patrons/12345")
+    mock_delete.assert_called_once_with("12345")
+    assert response.status_code == 200
