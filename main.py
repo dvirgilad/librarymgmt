@@ -23,4 +23,4 @@ app.include_router(LIBRARY_ACTIONS_ROUTER, prefix="/library", tags=["Library Act
 
 if __name__ == "__main__":
     connect("localhost:27017")
-    uvicorn.run("main:app", host="127.0.0.1", port=8080, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)

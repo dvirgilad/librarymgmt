@@ -44,19 +44,19 @@ class Transaction:
             timestamp=timestamp,
         )
 
-    #     def send_to_csv(self) -> None:
-    #         """Write Library transaction to transaction.csv"""
-    #         with open("transactions.csv", "a", newline="", encoding="UTF-8") as csvfile:
-    #             writer = csv.writer(csvfile, delimiter=",")
-    #             writer.writerow(
-    #                 [
-    #                     str(self.timestamp),
-    #                     self.patron_name,
-    #                     self.action,
-    #                     self.item_name,
-    #                 ]
-    #             )
+        def send_to_csv(self) -> None:
+            """Write Library transaction to transaction.csv"""
+            with open("transactions.csv", "a", newline="", encoding="UTF-8") as csvfile:
+                writer = csv.writer(csvfile, delimiter=",")
+                writer.writerow(
+                    [
+                        str(self.timestamp),
+                        self.patron_name,
+                        self.action,
+                        self.item_name,
+                    ]
+                )
 
-    def send_to_mongo(self) -> str:
+    def send_log_to_db(self) -> str:
         """Send transaction log to mongo"""
         return str(add_to_db(self.db_model))

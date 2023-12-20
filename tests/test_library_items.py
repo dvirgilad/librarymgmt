@@ -118,7 +118,7 @@ def test_borrow_item(mocker, test_book_document, test_student_document):
         "library_item.library_item_controller.update_libray_items_info_in_db",
         return_value=None,
     )
-    mocker.patch.object(Transaction, "send_to_mongo", return_value="789")
+    mocker.patch.object(Transaction, "send_log_to_db", return_value="789")
     transaction_id = borrow_item("123", "456")
     assert transaction_id == "789"
 
@@ -145,7 +145,7 @@ def test_return(mocker, test_book_document, test_student_document):
         "library_item.library_item_controller.update_patron_info_in_db",
         return_value=None,
     )
-    mocker.patch.object(Transaction, "send_to_mongo", return_value="789")
+    mocker.patch.object(Transaction, "send_log_to_db", return_value="789")
     transaction_id = return_library_item("123")
     assert transaction_id == "789"
 

@@ -4,3 +4,4 @@ todo
 .coverage
 coverage.*
 venv/
+*.csv

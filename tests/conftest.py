@@ -6,7 +6,6 @@ from library_item.library_item_model import BookBase, BookModel
 from main import app
 from bson import ObjectId
 
-# from library.library import Library
 import mongomock
 from mongoengine import connect, disconnect
 

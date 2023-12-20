@@ -1,8 +1,6 @@
 """Library Class. Handles Patrons and library items"""
 from datetime import datetime
 
-# from transactions.transactions import Transaction, Actions
-
 
 class DeleteAttributeException(Exception):
     """Exception raised if there is an attempt to delete a protected attribute"""

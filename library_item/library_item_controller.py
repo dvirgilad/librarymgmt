@@ -196,7 +196,7 @@ def borrow_item(item_id: str, borrower_id: str) -> str:
         library_item=item_model,
         action=Actions.BORROWED.value,
         timestamp=time_borrowed,
-    ).send_to_mongo()
+    ).send_log_to_db()
     return transaction_id
 
 
@@ -254,7 +254,7 @@ def return_library_item(item_id: str) -> str:
         library_item=item_model,
         action=Actions.RETURNED.value,
         timestamp=time_returned,
-    ).send_to_mongo()
+    ).send_log_to_db()
 
     return transaction_id
 
