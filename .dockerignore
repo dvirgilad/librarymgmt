@@ -1,0 +1,7 @@
+*.pyc
+.vscode/*
+todo
+.coverage
+coverage.*
+venv/
+*.csv
