@@ -1,17 +1,15 @@
 """pytest fixtures for use in tests"""
-import pytest
-from fastapi.testclient import TestClient
-from patrons.patron_model import PatronBase, Patron, PatronModel
-from library_item.library_item_model import (
-    LibraryItem,
-    LibraryItemBase,
-    LibraryItemModel,
-)
-from main import app
-from bson import ObjectId
-
 import mongomock
-from mongoengine import connect, disconnect
+import pytest
+from bson import ObjectId
+from fastapi.testclient import TestClient
+from mongoengine import connect
+
+from library_item.library_item_model import LibraryItemBase, LibraryItemModel
+from main import app
+from patrons.dal.patron_model import PatronCreate, PatronEdit, PatronReturn
+from patrons.dal.patron_document import PatronModel
+from consts import EXAMPLE_OBJECT_ID
 
 
 def pytest_configure(config):
@@ -30,7 +28,7 @@ def client():
 
 @pytest.fixture
 def test_teacher_basemodel():
-    return PatronBase(
+    return PatronCreate(
         name="testTeacher",
         category="TEACHER",
         fine_discount=1.5,
@@ -39,8 +37,33 @@ def test_teacher_basemodel():
 
 
 @pytest.fixture
+def save_patron_then_delete(test_student_document):
+    test_student_document.save()
+    yield
+    test_student_document.delete()
+
+
+@pytest.fixture
+def test_edit_patron_basemodel():
+    return PatronEdit(name="edited")
+
+
+@pytest.fixture
 def test_student_basemodel():
-    return PatronBase(
+    return PatronCreate(
+        id=EXAMPLE_OBJECT_ID,
+        name="testStudent",
+        category="STUDENT",
+        fine_discount=15,
+        fines=0,
+        degree="Testing",
+    )
+
+
+@pytest.fixture
+def test_student_return_basemodel():
+    return PatronReturn(
+        id=EXAMPLE_OBJECT_ID,
         name="testStudent",
         category="STUDENT",
         fine_discount=15,
@@ -71,6 +94,26 @@ def test_student_document():
         fines=0,
         fine_discount=0,
     )
+
+
+@pytest.fixture
+def test_teacher_document():
+    return PatronModel(
+        name="testTeacher",
+        category="TEACHER",
+        patron_attributes={"subject": "testing"},
+        fines=0,
+        fine_discount=0,
+    )
+
+
+@pytest.fixture
+def add_multiple_patrons_then_delete(test_student_document, test_teacher_document):
+    test_student_document.save()
+    test_teacher_document.save()
+    yield
+    test_student_document.delete()
+    test_teacher_document.delete()
 
 
 @pytest.fixture

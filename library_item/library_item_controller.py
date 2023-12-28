@@ -1,14 +1,12 @@
 """ Bussiness logic layer for library items """
-from datetime import datetime, timedelta
-from fastapi import HTTPException
+from datetime import datetime
 from library_item.library_item_model import (
     LibraryItemModel,
     LibraryItemBase,
     LibraryItem,
 )
-from library_item.library_item_base import LibraryItemTypes
 from library.library_dal import add_to_db, remove_from_db
-from library.library import ProtectedAttribute
+from library.library_exceptions import ProtectedAttribute
 from library_item.library_item_dal import (
     get_all_library_items_from_db,
     get_library_item_from_db,
@@ -16,7 +14,7 @@ from library_item.library_item_dal import (
     search_library_items_in_db,
 )
 from patrons.patron_controller import search_for_patron
-from patrons.patron_dal import update_patron_info_in_db
+from patrons.dal.patron_dal import update_patron_info_in_db
 from transactions.transactions import Transaction, Actions
 
 
@@ -53,7 +51,8 @@ class LibraryItemModelFactory:
         Returns:
             LibraryItem: patron basemodel
         """
-        library_item_basemodel = LibraryItem(**library_item_model.to_mongo().to_dict())
+        library_item_basemodel = LibraryItem(
+            **library_item_model.to_mongo().to_dict())
         return library_item_basemodel
 
 
@@ -86,7 +85,8 @@ def search_for_library_item_by_id(item_id: str) -> LibraryItemModel:
     """
     patron_db_model = get_library_item_from_db(item_id)
     if patron_db_model is None:
-        raise LibraryItemNotFound(f"Library item with ID: {item_id} not found in DB")
+        raise LibraryItemNotFound(
+            f"Library item with ID: {item_id} not found in DB")
     return patron_db_model
 
 
@@ -99,7 +99,8 @@ def remove_library_item(item_id: str) -> None:
     """
     library_item_model = search_for_library_item_by_id(item_id)
     if check_if_borrowed(library_item_model):
-        raise InvalidLibraryItem("Cannot delete an item that is currently checked out")
+        raise InvalidLibraryItem(
+            "Cannot delete an item that is currently checked out")
     remove_from_db(library_item_model)
 
 
@@ -165,7 +166,8 @@ def borrow_item(item_id: str, borrower_id: str) -> str:
     item_model = search_for_library_item_by_id(item_id)
     time_borrowed = datetime.utcnow()
     if check_if_borrowed(item_model):
-        raise InvalidLibraryItem(f"Item with ID {item_id} is already borrowed!")
+        raise InvalidLibraryItem(
+            f"Item with ID {item_id} is already borrowed!")
     update_libray_items_info_in_db(
         item_model,
         **{
@@ -273,8 +275,8 @@ def search_library_items(query_string: str, limit: int, skip: int) -> [LibraryIt
     Returns:
         [LibraryItemInternal]: array of library items that match query
     """
-    result_list = []
     M = LibraryItemModelFactory()
-    for library_item in search_library_items_in_db(query_string, limit, skip):
-        result_list.append(M.create_basemodel(library_item))
-    return result_list
+    return [
+        M.create_basemodel(library_item)
+        for library_item in search_library_items_in_db(query_string, limit, skip)
+    ]

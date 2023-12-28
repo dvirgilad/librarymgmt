@@ -1,7 +1,6 @@
 """DB models for library items"""
 from typing import Annotated, Union, Literal
 from mongoengine import (
-    Document,
     StringField,
     IntField,
     BooleanField,
@@ -11,12 +10,13 @@ from mongoengine import (
     DictField,
 )
 from bson import ObjectId
-from patrons.patron_model import PatronModel, PyObjectId
-from pydantic import BaseModel, Field, ConfigDict, BeforeValidator
+from patrons.dal.patron_document import PatronModel
+from pydantic import BaseModel, ConfigDict, BeforeValidator
 from datetime import datetime
 
 
 def borrower_to_string(v: any):
+    """If a library item has a borrowe, conver it to string NEED TO MOVE TO DAL"""
     if v is None:
         return v
     if isinstance(v, ObjectId):
@@ -59,8 +59,9 @@ class LibraryItemBase(BaseModel):
 
 class LibraryItem(LibraryItemBase):
     borrowed_status: bool = False
-    borrower: Annotated[Union[str, None], BeforeValidator(borrower_to_string)] = None
+    borrower: Annotated[Union[str, None],
+                        BeforeValidator(borrower_to_string)] = None
     borrowed_at: datetime | None = None
-    id: PyObjectId = Field(alias="_id", default=None)
+    id: str
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

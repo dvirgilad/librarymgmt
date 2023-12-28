@@ -5,3 +5,4 @@ todo
 coverage.*
 venv/
 *.csv
+.trunk/*

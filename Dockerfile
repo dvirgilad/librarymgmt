@@ -10,4 +10,6 @@ RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
 
 copy . /code/app
 
+USER 1001
+
 CMD ["python", "/code/app/main.py"]

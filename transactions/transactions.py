@@ -1,10 +1,12 @@
 """Transactions from library"""
-from enum import Enum
-from mongoengine import Document, ReferenceField, StringField, DateField
-from library_item.library_item_model import LibraryItemModel
-from patrons.patron_model import PatronModel
-from library.library_dal import add_to_db
 import datetime
+from enum import Enum
+import csv
+from mongoengine import DateField, Document, ReferenceField, StringField
+
+from library.library_dal import add_to_db
+from library_item.library_item_model import LibraryItemModel
+from patrons.dal.patron_document import PatronModel
 
 
 class Actions(Enum):
@@ -44,7 +46,7 @@ class Transaction:
             timestamp=timestamp,
         )
 
-        def send_to_csv(self) -> None:
+        def write_to_csv(self) -> None:
             """Write Library transaction to transaction.csv"""
             with open("transactions.csv", "a", newline="", encoding="UTF-8") as csvfile:
                 writer = csv.writer(csvfile, delimiter=",")

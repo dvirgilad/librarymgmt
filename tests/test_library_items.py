@@ -1,5 +1,4 @@
 """Unit tests of library items"""
-import pytest
 from library_item.library_item_controller import *
 from transactions.transactions import Transaction
 
@@ -9,7 +8,8 @@ def test_add_library_item(mocker, test_book_basemodel, test_book_document):
     mocker.patch.object(
         LibraryItemModelFactory, "create_model", return_value=test_book_document
     )
-    mocker.patch("library_item.library_item_controller.add_to_db", return_value="12345")
+    mocker.patch("library_item.library_item_controller.add_to_db",
+                 return_value="12345")
     mocker.patch(
         "library_item.library_item_controller.check_if_borrowed", return_value=False
     )
@@ -76,7 +76,7 @@ def test_get_library_item_from_db(mocker, test_book_document):
     test_book_document.save()
     get_item = get_library_item_from_db(test_book_document.id)
     assert get_item.to_json() == test_book_document.to_json()
-    ## Have to delete library items for other tests because data persists between tests
+    # Have to delete library items for other tests because data persists between tests
     test_book_document.delete()
 
 
@@ -196,7 +196,8 @@ def test_update_library_item_route(mocker, client):
         "library_item.library_item_routes.update_library_item",
         return_value=None,
     )
-    response = client.patch("/items/12345?attribute_to_edit=name&new_value=test")
+    response = client.patch(
+        "/items/12345?attribute_to_edit=name&new_value=test")
     mock_patch.assert_called_once_with("12345", "name", "test")
     assert response.status_code == 200
 
