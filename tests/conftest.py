@@ -5,7 +5,12 @@ from bson import ObjectId
 from fastapi.testclient import TestClient
 from mongoengine import connect
 
-from library_item.library_item_model import LibraryItemBase, LibraryItemModel
+from library_item.dal.library_item_model import (
+    LibraryItemCreate,
+    LibraryItemEdit,
+    LibraryItemReturn,
+)
+from library_item.dal.library_item_document import LibraryItemModel
 from main import app
 from patrons.dal.patron_model import PatronCreate, PatronEdit, PatronReturn
 from patrons.dal.patron_document import PatronModel
@@ -74,7 +79,7 @@ def test_student_return_basemodel():
 
 @pytest.fixture
 def test_book_basemodel():
-    return LibraryItemBase(
+    return LibraryItemCreate(
         _id=ObjectId(),
         name="TestBook1",
         fine=100,
@@ -127,3 +132,50 @@ def test_book_document():
         borrower=None,
         category="BOOK",
     )
+
+
+@pytest.fixture
+def test_disk_document():
+    return LibraryItemModel(
+        name="Testdisk1",
+        fine=100,
+        borrowing_period=100,
+        author="ME",
+        genre="testing",
+        borrower=None,
+        category="DISK",
+    )
+
+
+@pytest.fixture
+def test_edit_library_item_model():
+    return LibraryItemEdit(name="updated")
+
+
+@pytest.fixture
+def test_add_library_item_return_model():
+    return LibraryItemReturn(
+        id=EXAMPLE_OBJECT_ID,
+        name="TestBook1",
+        fine=100,
+        borrowing_period=100,
+        author="ME",
+        genre="testing",
+        category="BOOK",
+    )
+
+
+@pytest.fixture
+def save_library_item_then_delete(test_book_document):
+    test_book_document.save()
+    yield
+    test_book_document.delete()
+
+
+@pytest.fixture
+def add_multiple_items_then_delete(test_book_document, test_disk_document):
+    test_book_document.save()
+    test_disk_document.save()
+    yield
+    test_book_document.delete()
+    test_disk_document.delete()

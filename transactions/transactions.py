@@ -5,7 +5,7 @@ import csv
 from mongoengine import DateField, Document, ReferenceField, StringField
 
 from library.library_dal import add_to_db
-from library_item.library_item_model import LibraryItemModel
+from library_item.dal.library_item_document import LibraryItemModel
 from patrons.dal.patron_document import PatronModel
 
 

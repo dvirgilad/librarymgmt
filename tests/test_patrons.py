@@ -107,7 +107,6 @@ def test_get_patron_route(mocker, client, test_student_return_basemodel):
     )
     model_json = test_student_return_basemodel.model_dump()
     test_response = client.get(f"/patrons/{EXAMPLE_OBJECT_ID}")
-    print(test_response)
     assert test_response.status_code == SUCCESSFUL_HTTP_CODE
     assert test_response.json()["name"] == model_json["name"]
 

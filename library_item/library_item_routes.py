@@ -1,9 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+from fastapi import APIRouter, Query
 
 from library_item.library_item_controller import (
-    InvalidLibraryItem,
-    LibraryItemNotFound,
-    ProtectedAttribute,
     borrow_item,
     create_library_item,
     get_all_library_items,
@@ -13,178 +11,123 @@ from library_item.library_item_controller import (
     search_library_items,
     update_library_item,
 )
-from library_item.library_item_model import LibraryItem, LibraryItemBase
+from library_item.dal.library_item_model import (
+    LibraryItemReturn,
+    LibraryItemEdit,
+    LibraryItemCreate,
+)
+from consts import PaginationDefaults
 
 LIBRARY_ITEM_ROUTER = APIRouter()
 LIBRARY_ACTIONS_ROUTER = APIRouter()
 
 
 @LIBRARY_ITEM_ROUTER.get("/")
-def get_all_library_items_route(limit: int = 10, skip: int = 0) -> {}:
-    """Returns all library items
-    Args:
-        limit(int): how many results to return
-        skip(int): how many results to skip
+def get_all_library_items_route(
+    limit: Annotated[
+        int, Query(description="Number of items to return", ge=1)
+    ] = PaginationDefaults.limit,
+    skip: Annotated[
+        int, Query(description="Number of items to skip", ge=0)
+    ] = PaginationDefaults.skip,
+) -> dict:
+    """Route to get requested amount of library items
 
-    Raises:
-        HTTPException: _description_
-
-    Returns:
-        {}: dict of results
+    :return: dict of items
+    :rtype: dict
     """
-    if limit < 1 or skip < 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid limit or skip"
-        )
-    return {"items": get_all_library_items(limit, skip), "limit": limit, "skip": skip}
+
+    return get_all_library_items(limit, skip)
 
 
 @LIBRARY_ITEM_ROUTER.get("/{item_id}")
-def get_library_item_route(item_id: str) -> LibraryItem:
-    """Get a library item by id
+def get_library_item_route(item_id: str) -> LibraryItemReturn:
+    """Route to get library item by id
 
-    Args:
-        item_id (str): library item id
-
-    Raises:
-        HTTPException: Librray item not found
-
-    Returns:
-        LibraryItem: libray item model
+    :param item_id: object ID of item
+    :type item_id: str
+    :return: Library item basemodel
+    :rtype: LibraryItemReturn
     """
-    try:
-        return get_library_item(item_id)
-    except LibraryItemNotFound as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Library item with ID {item_id} not found",
-        ) from exc
+    return get_library_item(item_id)
 
 
 @LIBRARY_ITEM_ROUTER.post("/")
-def post_library_item_route(library_item: LibraryItemBase) -> str:
-    """Route to create a library item
+def post_library_item_route(library_item: LibraryItemCreate) -> str:
+    """Route to add a library item
 
-    Args:
-        library_item (LibraryItemBase): library item to add
-
-    Returns:
-        str: library item ID
+    :param library_item: Library item model
+    :type library_item: LibraryItemCreate
+    :return: Item object ID
+    :rtype: str
     """
     return create_library_item(library_item)
 
 
 @LIBRARY_ITEM_ROUTER.delete("/{item_id}")
 def delete_library_item_route(item_id: str) -> None:
-    """Route to delete a library item
+    """Route to delete a library item by ID
 
-    Args:
-        item_id (str): library item ID
-
-    Raises:
-        HTTPException: LibraryItemNotFound
-        HTTPException: InvalidLibraryItem
+    :param item_id: ID of to delete
+    :type item_id: str
     """
-    try:
-        remove_library_item(item_id)
-    except LibraryItemNotFound as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Library item with ID {item_id} not found",
-        ) from exc
-    except InvalidLibraryItem as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Library item with ID {item_id} cannot be deleted as it is checked out",
-        ) from exc
+    remove_library_item(item_id)
 
 
 @LIBRARY_ITEM_ROUTER.patch("/{item_id}")
-def update_library_item_route(
-    item_id: str, attribute_to_edit: str, new_value: str
-) -> None:
-    """Route to update the value of a specific library item attribute
+def update_library_item_route(item_id: str, updated_item: LibraryItemEdit) -> None:
+    """Route to update a library item
 
-    Args:
-        item_id (str): ID of library item to edit
-        attribute_to_edit (str): attribute to edit
-        new_value (str): new value of attribute
-
-    Raises:
-        HTTPException: ProtectedAttribute
+    :param item_id: ID of item to edit
+    :type item_id: str
+    :param updated_item: dict of attributes to edit
+    :type updated_item: LibraryItemEdit
     """
-    try:
-        update_library_item(item_id, attribute_to_edit, new_value)
-    except ProtectedAttribute as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"cannot edit a library items {attribute_to_edit}",
-        ) from exc
+    update_library_item(item_id, updated_item)
 
 
 @LIBRARY_ACTIONS_ROUTER.post("/borrow")
 def borrow_item_route(item_id: str, patron_id: str) -> str:
-    """Route to borrow item
+    """Route to borrow and item from library
 
-    Args:
-        item_id (str): item of item to borrow
-        patron_id (str): id of borrower
-
-    Raises:
-        HTTPException: If item is already borrowed
-
-    Returns:
-        str: Transaction ID
+    :param item_id: ID of item to borrow
+    :type item_id: str
+    :param patron_id: ID of patron borrowing the item
+    :type patron_id: str
+    :return: transaction ID
+    :rtype: str
     """
-    try:
-        return borrow_item(item_id, patron_id)
-    except InvalidLibraryItem as exc:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"library item with id {item_id} is already borrowed",
-        ) from exc
+    return borrow_item(item_id, patron_id)
 
 
 @LIBRARY_ACTIONS_ROUTER.post("/return/{item_id}")
 def return_item_route(item_id: str) -> str:
-    """Route to return item to library
+    """Route to return an item to the library
 
-    Args:
-        item_id (str): ID of item to return
-
-    Raises:
-        HTTPException: if item is not borrowed
-
-    Returns:
-        str: transaction ID
+    :param item_id: ID of item to return
+    :type item_id: str
+    :return: ID of transaction
+    :rtype: str
     """
-    try:
-        return return_library_item(item_id)
-    except InvalidLibraryItem as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"library item with id {item_id} is not borrowed",
-        ) from exc
+    return return_library_item(item_id)
 
 
 @LIBRARY_ACTIONS_ROUTER.get("/search/{query_string}")
-def search_library_items_route(query_string: str, limit: int = 10, skip: int = 0) -> {}:
-    """route to search for library item by a string
+def search_library_items_route(
+    query_string: str,
+    limit: Annotated[
+        int, Query(description="Number of items to return", ge=1)
+    ] = PaginationDefaults.limit,
+    skip: Annotated[
+        int, Query(description="Number of items to skip", ge=0)
+    ] = PaginationDefaults.skip,
+) -> dict:
+    """Search a library for a string
 
-    Args:
-        query_string (str): string to search for
-        limit(int): how many results to return
-        skip(int): how many results to skip
-
-    Returns:
-        [LibraryItemInternal]: Array of all library items that match query
+    :param query_string: String to search for
+    :type query_string: str
+    :return: results of search
+    :rtype: dict
     """
-    if limit < 1 or skip < 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid limit or skip"
-        )
-    return {
-        "items": search_library_items(query_string, limit, skip),
-        "limit": limit,
-        "skip": skip,
-    }
+
+    return search_library_items(query_string, limit, skip)

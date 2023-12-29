@@ -1,8 +1,7 @@
 import json
 from mongoengine import DictField, Document, FloatField, IntField, StringField
 from bson import son, json_util
-
-MONGO_OID_PREFIX: str = "$oid"
+from consts import MONGO_OID_PREFIX
 
 
 class PatronModel(Document):

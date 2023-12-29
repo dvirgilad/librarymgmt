@@ -18,10 +18,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="LibraryMGMT", lifespan=lifespan)
 app.include_router(PATRON_ROUTER, prefix="/patrons", tags=["Patrons"])
-# app.include_router(LIBRARY_ITEM_ROUTER, prefix="/items",
-#                    tags=["Library Items"])
-# app.include_router(LIBRARY_ACTIONS_ROUTER,
-#                    prefix="/library", tags=["Library Actions"])
+app.include_router(LIBRARY_ITEM_ROUTER, prefix="/items", tags=["Library Items"])
+app.include_router(LIBRARY_ACTIONS_ROUTER, prefix="/library", tags=["Library Actions"])
 
 
 @app.exception_handler(AppException)

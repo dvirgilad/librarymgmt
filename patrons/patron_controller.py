@@ -27,7 +27,7 @@ def create_patron(patron: PatronCreate) -> str:
         patron_id = add_to_db(db_model)
         return str(patron_id)
     except Exception as exc:
-        raise AppException(500, exc) from exc
+        raise AppException(500, str(exc)) from exc
 
 
 def search_for_patron(patron_id: str) -> PatronModel:

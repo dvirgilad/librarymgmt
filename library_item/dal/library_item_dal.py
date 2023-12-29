@@ -1,5 +1,5 @@
 """Data access layer for library items"""
-from library_item.library_item_model import LibraryItemModel
+from library_item.dal.library_item_document import LibraryItemModel
 
 
 def get_library_item_from_db(library_item_id: str) -> LibraryItemModel:
@@ -39,6 +39,7 @@ def update_libray_items_info_in_db(
             library_item_model.modify(**{f"set__{attrib.lower()}": value})
     else:
         library_item_model.modify(**{f"set__{attribute.lower()}": new_value})
+    print(library_item_model.name)
     library_item_model.save()
 
 
@@ -53,5 +54,4 @@ def search_library_items_in_db(
     Returns:
         [LibraryItemModel]: list of library items that match query
     """
-    print(1)
     return LibraryItemModel.objects.search_text(query_string)[skip:limit]

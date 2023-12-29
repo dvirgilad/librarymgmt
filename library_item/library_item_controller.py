@@ -1,13 +1,16 @@
 """ Bussiness logic layer for library items """
+from mongoengine import ValidationError
 from datetime import datetime
-from library_item.library_item_model import (
-    LibraryItemModel,
-    LibraryItemBase,
-    LibraryItem,
+from library_item.dal.library_item_model import (
+    LibraryItemReturn,
+    LibraryItemCreate,
+    LibraryItemEdit,
 )
+from library_item.dal.library_item_document import LibraryItemModel
+from library_item.library_item_exceptions import LibraryItemNotFound, InvalidLibraryItem
 from library.library_dal import add_to_db, remove_from_db
-from library.library_exceptions import ProtectedAttribute
-from library_item.library_item_dal import (
+from library.library_exceptions import AppException, InvalidID
+from library_item.dal.library_item_dal import (
     get_all_library_items_from_db,
     get_library_item_from_db,
     update_libray_items_info_in_db,
@@ -16,131 +19,106 @@ from library_item.library_item_dal import (
 from patrons.patron_controller import search_for_patron
 from patrons.dal.patron_dal import update_patron_info_in_db
 from transactions.transactions import Transaction, Actions
+from library_item.library_item_model_factory import LibraryItemModelFactory
 
 
-class InvalidLibraryItem(Exception):
-    """Exception raise if library item is invalid"""
+def create_library_item(library_item: LibraryItemCreate) -> str:
+    """Convert a libarry item basemodel to a document adn add it to db
 
-
-class LibraryItemNotFound(Exception):
-    """Exception raised if library item not found in library"""
-
-
-class LibraryItemModelFactory:
-    """Patron model factory class"""
-
-    def create_model(self, library_item: LibraryItemBase) -> LibraryItemModel:
-        """creates library_item document model from basemodel
-
-        Args:
-            patron (LibraryItemBase): library_item basemodel
-
-        Returns:
-            _type_: library_item document model
-        """
-
-        db_model = LibraryItemModel(**library_item.model_dump())
-        return db_model
-
-    def create_basemodel(self, library_item_model: LibraryItemModel) -> LibraryItem:
-        """generates library item basemodel from document model
-
-        Args:
-            patron_model (PatronModel): patron document model
-
-        Returns:
-            LibraryItem: patron basemodel
-        """
-        library_item_basemodel = LibraryItem(
-            **library_item_model.to_mongo().to_dict())
-        return library_item_basemodel
-
-
-def create_library_item(library_item: LibraryItemBase) -> str:
-    """adds library item to db and returns its mongo ID
-
-    Args:
-        library_item (LibraryItem): Library item basemodel
-
-    Returns:
-        str: library items mongo ID
+    :param library_item: library item basemodel to add
+    :type library_item: LibraryItemCreate
+    :return: object ID of model
+    :rtype: str
     """
-
-    db_model = LibraryItemModelFactory().create_model(library_item=library_item)
-    item_id = add_to_db(db_model)
-    return str(item_id)
+    try:
+        db_model = LibraryItemModelFactory.create_model(library_item=library_item)
+        item_id = add_to_db(db_model)
+        return item_id
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
 def search_for_library_item_by_id(item_id: str) -> LibraryItemModel:
-    """search for library item in DB. raise LibraryItemNotFound if not found
+    """Search for library item by ID
 
-    Args:
-        patron_id (str): library item mongo id
-
-    Raises:
-        LibraryItemNotFound: raised if no library item with given id is found
-
-    Returns:
-        LibraryItemModel: library item document model
+    :param item_id: object id of item
+    :type item_id: str
+    :raises LibraryItemNotFound: if item is not found
+    :raises InvalidID: if ID given is not valid
+    :return: Library item document
+    :rtype: LibraryItemModel
     """
-    patron_db_model = get_library_item_from_db(item_id)
+    try:
+        patron_db_model = get_library_item_from_db(item_id)
+    except ValidationError as exc:
+        raise InvalidID(object_id=item_id) from exc
     if patron_db_model is None:
-        raise LibraryItemNotFound(
-            f"Library item with ID: {item_id} not found in DB")
+        raise LibraryItemNotFound(item_id)
     return patron_db_model
 
 
 def remove_library_item(item_id: str) -> None:
-    """Checks if library item exists in db and deletes it
-    Args:
-        item_id (str): Item mongo id
-    Raises:
-        InvalidLibraryItem: raised if library item cannot be deleted
+    """searches for a library item and deletes it
+
+    :param item_id: ID of item to delete
+    :type item_id: str
+    :raises InvalidLibraryItem: If item is currently checked
+    :raises AppException: generic exception
     """
     library_item_model = search_for_library_item_by_id(item_id)
     if check_if_borrowed(library_item_model):
         raise InvalidLibraryItem(
-            "Cannot delete an item that is currently checked out")
-    remove_from_db(library_item_model)
+            item_id, "Cannot delete an item that is currently checked out"
+        )
+    try:
+        remove_from_db(library_item_model)
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
-def update_library_item(item_id: str, attribute: str, new_value: str) -> None:
-    """updates the given attribute of a library item
+def update_library_item(item_id: str, new_item_info: LibraryItemEdit) -> None:
+    """search for library item and update its info
 
-    Args:
-        item_id (str): ID of item to update
-        attribute (str): attribute of item to update
-        new_value (str): new value of given attribute
+    :param item_id: ID of item to edit
+    :type item_id: str
+    :param new_item_info: basemodel of attributes to update
+    :type new_item_info: LibraryItemEdit
+    :raises AppException: generic exception
     """
 
-    if attribute.upper() in ["BORROWER", "BORROWED_STATUS", "BORROWED_AT"]:
-        raise ProtectedAttribute(f"Cannot edit an items {attribute}")
     patron_model = search_for_library_item_by_id(item_id)
-    update_libray_items_info_in_db(patron_model, attribute, new_value)
+    try:
+        update_libray_items_info_in_db(
+            patron_model, **new_item_info.model_dump(exclude_none=True)
+        )
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
-def get_library_item(item_id: str) -> LibraryItem:
-    """searches for library item and returns its basemodel
+def get_library_item(item_id: str) -> LibraryItemReturn:
+    """gets library item and converts it to basemodel
 
-    Args:
-        item_id (str): item mongo ID
-
-    Returns:
-        LibraryItem: Item basemodel
+    :param item_id: object id of item
+    :type item_id: str
+    :raises AppException: generic exception
+    :return: library item basemodel
+    :rtype: LibraryItemReturn
     """
     item_model = search_for_library_item_by_id(item_id=item_id)
-    item_basemodel = LibraryItemModelFactory().create_basemodel(item_model)
-    return item_basemodel
+    try:
+        item_basemodel = LibraryItemModelFactory.create_basemodel(item_model)
+        return item_basemodel
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
 def check_if_borrowed(library_item: LibraryItemModel) -> bool:
-    """check if library item is currently checked out
+    """Check if item is currently checked out
 
-    Args:
-        library_item (LibraryItemModel): Library item to check
-
-    Returns:
-        bool: if borrowed or not
+    :param library_item: library item to check
+    :type library_item: LibraryItemModel
+    :return: If item is checked out
+    :rtype: bool
     """
     if (
         library_item.borrowed_status
@@ -152,42 +130,44 @@ def check_if_borrowed(library_item: LibraryItemModel) -> bool:
 
 
 def borrow_item(item_id: str, borrower_id: str) -> str:
-    """Borrows an item by a patron and logs it in the transactions table
+    """Check if a library item can be borrowed and then borrows it
 
-    Args:
-        item_id (str): ID of item to borrow
-        borrower_id (str): ID of patron that is borrowing
-    Raises:
-        InvalidLibraryItem: raised if library item cannot be borrowed
-    Returns:
-        str: mongo id of transaction
+    :param item_id: ID of item to borrow
+    :type item_id: str
+    :param borrower_id: ID of patron that is borrowing
+    :type borrower_id: str
+    :raises InvalidLibraryItem: If item cannot be borrowed
+    :return: ID of transaction
+    :rtype: str
     """
     patron_model = search_for_patron(borrower_id)
     item_model = search_for_library_item_by_id(item_id)
     time_borrowed = datetime.utcnow()
     if check_if_borrowed(item_model):
         raise InvalidLibraryItem(
-            f"Item with ID {item_id} is already borrowed!")
-    update_libray_items_info_in_db(
-        item_model,
-        **{
-            "borrower": patron_model,
-            "borrowed_status": True,
-            "borrowed_at": time_borrowed,
-        },
-    )
-    transaction_id = Transaction(
-        patron=patron_model,
-        library_item=item_model,
-        action=Actions.BORROWED.value,
-        timestamp=time_borrowed,
-    ).send_log_to_db()
-    return transaction_id
+            item_id, f"Item with ID {item_id} is already borrowed!"
+        )
+    try:
+        update_libray_items_info_in_db(
+            item_model,
+            **{
+                "borrower": patron_model,
+                "borrowed_status": True,
+                "borrowed_at": time_borrowed,
+            },
+        )
+        transaction_id = Transaction(
+            patron=patron_model,
+            library_item=item_model,
+            action=Actions.BORROWED.value,
+            timestamp=time_borrowed,
+        ).send_log_to_db()
+        return transaction_id
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
-def check_if_returned_late(
-    library_item: LibraryItemModel, time_returned: datetime
-) -> int:
+def check_fine_amount(library_item: LibraryItemModel, time_returned: datetime) -> int:
     """check if library item is returned late. returns the amount of fines to add to patron
 
     Args:
@@ -205,78 +185,85 @@ def check_if_returned_late(
 
 
 def return_library_item(item_id: str) -> str:
-    """Returns an item to the library
+    """Checks if library item is borrowed and returns it
 
-    Args:
-        item_id (str): mongo id of library id
-    Raises:
-        InvalidLibraryItem: raised if library item is not checked out
-    Returns:
-        str: mongo id of transaction
+    :param item_id: ID of item to return
+    :type item_id: str
+    :raises InvalidLibraryItem: if item is not borrowed
+    :return: ID of transaction
+    :rtype: str
     """
     item_model = search_for_library_item_by_id(item_id)
     patron_model = item_model.borrower
     time_returned = datetime.utcnow()
     if not check_if_borrowed(item_model):
         raise InvalidLibraryItem(f"Item with ID {item_id} is not checked out")
-    fines_to_add = check_if_returned_late(item_model, time_returned)
-    fines_to_add_with_discount = fines_to_add - (
-        fines_to_add * patron_model.fine_discount
-    )
-    update_libray_items_info_in_db(
-        item_model,
-        **{
-            "borrower": None,
-            "borrowed_status": False,
-            "borrowed_at": None,
-        },
-    )
-    update_patron_info_in_db(
-        patron_model, "fines", patron_model.fines + fines_to_add_with_discount
-    )
-    transaction_id = Transaction(
-        patron=patron_model,
-        library_item=item_model,
-        action=Actions.RETURNED.value,
-        timestamp=time_returned,
-    ).send_log_to_db()
-
-    return transaction_id
-
-
-def get_all_library_items(limit: int, skip: int) -> [LibraryItem]:
-    """returns array of all library items
-    Args:
-        limit(int): how many results to return
-        skip(int): how many results to skip
-
-    Returns:
-        [LibraryItem]: array of all library items in library
-    """
-
-    model_list = get_all_library_items_from_db(limit, skip)
-    response_list = []
-    model_factory = LibraryItemModelFactory()
-    for item_model in model_list:
-        response_list.append(
-            model_factory.create_basemodel(library_item_model=item_model)
+    try:
+        fines_to_add = check_fine_amount(item_model, time_returned)
+        fines_to_add_with_discount = fines_to_add - (
+            fines_to_add * patron_model.fine_discount
         )
-    return response_list
+        update_libray_items_info_in_db(
+            item_model,
+            **{
+                "borrower": None,
+                "borrowed_status": False,
+                "borrowed_at": None,
+            },
+        )
+        update_patron_info_in_db(
+            patron_model, "fines", patron_model.fines + fines_to_add_with_discount
+        )
+        transaction_id = Transaction(
+            patron=patron_model,
+            library_item=item_model,
+            action=Actions.RETURNED.value,
+            timestamp=time_returned,
+        ).send_log_to_db()
+        return transaction_id
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
-def search_library_items(query_string: str, limit: int, skip: int) -> [LibraryItem]:
-    """Query db for documents that match a string and convert them to basemodel
+def get_all_library_items(limit: int, skip: int) -> dict:
+    """Returns requested amount of library items
 
-    Args:
-        query_string (str): string to search for
-        limit(int): how many results to return
-        skip(int): how many results to skip
-
-    Returns:
-        [LibraryItemInternal]: array of library items that match query
+    :raises AppException: generic exception
+    :return: dict of library items
+    :rtype: dict
     """
-    M = LibraryItemModelFactory()
-    return [
-        M.create_basemodel(library_item)
-        for library_item in search_library_items_in_db(query_string, limit, skip)
-    ]
+    try:
+        model_list = get_all_library_items_from_db(limit, skip)
+
+        return {
+            "items": [
+                LibraryItemModelFactory.create_basemodel(library_item_model=item_model)
+                for item_model in model_list
+            ],
+            "limit": limit,
+            "skip": skip,
+        }
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
+
+
+def search_library_items(query_string: str, limit: int, skip: int) -> dict:
+    """Search db for a string
+
+    :param query_string: string to search for
+    :type query_string: str
+    :param limit: number of items to return
+    :type limit: int
+    :param skip: number of items to return
+    :type skip: int
+    :return: dict of items
+    :rtype: dict
+    """
+    return {
+        "items": [
+            LibraryItemModelFactory.create_basemodel(library_item)
+            for library_item in search_library_items_in_db(query_string, limit, skip)
+        ],
+        "limit": limit,
+        "skip": skip,
+    }

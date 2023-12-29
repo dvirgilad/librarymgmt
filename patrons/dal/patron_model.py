@@ -20,7 +20,7 @@ class PatronReturn(PatronCreate):
 
 
 class PatronEdit(BaseModel):
-    """Patron class for with attributes that can be edited"""
+    """Patron class with attributes that can be edited"""
 
     name: str = None
     fine_discount: str = None
