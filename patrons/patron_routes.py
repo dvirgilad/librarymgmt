@@ -1,90 +1,78 @@
 """patron fastapi routes"""
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+from fastapi import APIRouter, Query
+from patrons.dal.patron_model import PatronReturn, PatronCreate, PatronEdit
 from patrons.patron_controller import (
-    get_patron,
     create_patron,
+    get_all_patrons,
+    get_patron,
     remove_patron,
     update_patron,
-    get_all_patrons,
-    PatronNotFound,
-    ProtectedAttribute,
 )
-from patrons.patron_model import Patron, Student, Teacher, StudentBase, TeacherBase
+from consts import PaginationDefaults
 
 PATRON_ROUTER = APIRouter()
 
 
 @PATRON_ROUTER.get("/{patron_id}")
-def get_patron_route(patron_id: str) -> StudentBase | TeacherBase:
-    """Route to get a specific patron by ID
+def get_patron_route(patron_id: str) -> PatronReturn:
+    """Route to get a patron by ID
 
-    Args:
-        patron_id (str): the ID of the patron
-
-    Returns:
-        Student | Teacher: Patron model
+    :param patron_id: ID of patron to return
+    :type patron_id: str
+    :rtype: Patron
     """
-    try:
-        return get_patron(patron_id)
-    except PatronNotFound as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Patron not found"
-        ) from exc
+    return get_patron(patron_id)
 
 
 @PATRON_ROUTER.get("/")
-def get_all_patrons_route() -> []:
-    """Returns array of all patrons
+def get_all_patrons_route(
+    limit: Annotated[
+        int, Query(description="Number of patrons to return", ge=1)
+    ] = PaginationDefaults.limit,
+    skip: Annotated[
+        int, Query(description="Number of patrons to skip", ge=0)
+    ] = PaginationDefaults.skip,
+) -> dict:
+    """Route to get all patrons
 
-    Returns:
-        [Patron]: patron array
+    :return: Requested items
+    :rtype: dict
     """
-    return get_all_patrons()
+
+    return get_all_patrons(limit, skip)
 
 
 @PATRON_ROUTER.post("/", response_model=str)
-def post_patron_route(patron: Student | Teacher) -> str:
+def post_patron_route(patron: PatronCreate) -> str:
     """Route to create a patron
 
-    Args:
-        patron (Student | Teacher): the patron model
-
-    Returns:
-        str: patron ID
+    :param patron: patron model
+    :type patron: PatronCreate
+    :return: ID of created patron
+    :rtype: str
     """
     return create_patron(patron)
 
 
 @PATRON_ROUTER.delete("/{patron_id}")
 def delete_patron_route(patron_id: str) -> None:
-    """Deletes a patron by ID
+    """Route to delete a patron by ID
 
-    Args:
-        patron_id (str): patron ID
+    :param patron_id: ID of patron to delete
+    :type patron_id: str
+    :raises HTTPException: _description_
     """
-    try:
-        remove_patron(patron_id)
-    except PatronNotFound as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Patron not found"
-        ) from exc
+    remove_patron(patron_id)
 
 
 @PATRON_ROUTER.patch("/{patron_id}")
-def update_patron_route(patron_id: str, attribute_to_edit: str, new_value: str) -> None:
-    """update the value of a specific patron attribute
+def update_patron_route(patron_id: str, updated_patron: PatronEdit) -> None:
+    """Route to edit a patron
 
-    Args:
-        patron_id (str): ID of patron to edit
-        attribute_to_edit (str): attribute to edit
-        new_value (str): new value of attribute
-    Raises:
-        HTTPException: ProtectedAttribute
+    :param patron_id: ID of patron to edit
+    :type patron_id: str
+    :param updated_patron: patron info to change
+    :type updated_patron: PatronEdit
     """
-    try:
-        update_patron(patron_id, attribute_to_edit, new_value)
-    except ProtectedAttribute as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"cannot edit a patrons {attribute_to_edit}",
-        ) from exc
+    update_patron(patron_id, updated_patron)

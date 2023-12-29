@@ -1,156 +1,122 @@
 """ Bussiness logic layer for patrons of library"""
 from mongoengine import ValidationError
-
-from patrons.patron_model import (
-    PatronBase,
-    PatronModel,
-    TeacherModel,
-    StudentModel,
-    TeacherBase,
-    StudentBase,
-)
-from patrons.patron_base import PatronTypes
-from library.library_dal import add_to_db, remove_from_db
-from patrons.patron_dal import (
+from patrons.dal.patron_document import PatronModel
+from patrons.patron_exceptions import PatronNotFound
+from patrons.patron_model_factory import PatronModelFactory
+from patrons.dal.patron_model import PatronReturn, PatronCreate, PatronEdit
+from patrons.dal.patron_dal import (
     get_patron_from_db,
     update_patron_info_in_db,
     get_all_patrons_from_db,
 )
-from library.library import ProtectedAttribute
-import json
+
+from library.library_dal import add_to_db, remove_from_db
+from library.library_exceptions import InvalidID, AppException
 
 
-class PatronNotFound(Exception):
-    """Exception raised if patron not found in library"""
+def create_patron(patron: PatronCreate) -> str:
+    """Convert a patron to document and add it to db
 
-
-class PatronModelFactory:
-    """Patron model factory class"""
-
-    def create_model(self, patron: PatronBase):
-        """creates patron document model from basemodel
-
-        Args:
-            patron (PatronBase): patron basemodel
-
-        Returns:
-            _type_: patron document model
-        """
-        match patron.category:
-            case PatronTypes.TEACHER.name:
-                db_model = TeacherModel(**patron.model_dump())
-            case PatronTypes.STUDENT.name:
-                db_model = StudentModel(**patron.model_dump())
-            case default:
-                db_model = PatronModel(**patron.model_dump())
-        return db_model
-
-    def create_basemodel(self, patron_model: PatronModel):
-        """generates patron basemodel from document model
-
-        Args:
-            patron_model (PatronModel): patron document model
-
-        Returns:
-            _type_: patron basemodel
-        """
-
-        match patron_model.category:
-            case PatronTypes.TEACHER.name:
-                patron_basemodel = TeacherBase(**patron_model.to_mongo().to_dict())
-            case PatronTypes.STUDENT.name:
-                patron_basemodel = StudentBase(**patron_model.to_mongo().to_dict())
-            case default:
-                patron_basemodel = PatronBase(**patron_model.to_mongo().to_dict())
-        return patron_basemodel
-
-
-def create_patron(patron: PatronBase) -> str:
-    """accepts a patron model and adds it to db
-
-    Args:
-        patron (PatronBase): Patron basemodel
-
-    Returns:
-        str: patron mongo id
+    :param patron: Patron basemodel
+    :type patron: PatronCreate
+    :return: patron ID
+    :rtype: str
     """
-    db_model = PatronModelFactory().create_model(patron=patron)
-    patron_id = add_to_db(db_model)
-    return str(patron_id)
+    try:
+        db_model = PatronModelFactory.create_model(patron=patron)
+        patron_id = add_to_db(db_model)
+        return str(patron_id)
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
 def search_for_patron(patron_id: str) -> PatronModel:
-    """search for patron in DB. raise PatronNotFound if not found
+    """Search for patron by ID and return it's document model
 
-    Args:
-        patron_id (str): patron mongo id
-
-    Raises:
-        PatronNotFound: raised if no patron with given id is found
-
-    Returns:
-        PatronModel: patron document model
+    :param patron_id: ID of patron to search for
+    :type patron_id: str
+    :raises InvalidID: if patron_id is invalid
+    :raises PatronNotFound: If no patron with given ID is found
+    :return: Document model of patron
+    :rtype: PatronModel
     """
     try:
         patron_db_model = get_patron_from_db(patron_id)
     except ValidationError as exc:
-        raise PatronNotFound(f"patron with ID: {patron_id} not found in DB") from exc
+        raise InvalidID(object_id=patron_id) from exc
     if patron_db_model is None:
-        raise PatronNotFound(f"patron with ID: {patron_id} not found in DB")
+        raise PatronNotFound(patron_id=patron_id)
     return patron_db_model
 
 
-def get_patron(patron_id: str) -> PatronBase:
-    """searches for a patron and returns it's basemodel
+def get_patron(patron_id: str) -> PatronReturn:
+    """Searches for patron and converts it to basemodel
 
-    Args:
-        patron_id (str): Patron ID
-
-    Raises:
-        PatronNotFound: if patron with ID is not found
-
-    Returns:
-        PatronBase: patron basemodel
+    :param patron_id: ID of patron to search for
+    :type patron_id: str
+    :return: Patron basemodel
+    :rtype: PatronReturn
     """
     patron_db_model = search_for_patron(patron_id)
-    patron_model = PatronModelFactory().create_basemodel(patron_db_model)
-    return patron_model
+    try:
+        patron_model = PatronModelFactory.create_basemodel(patron_db_model)
+        return patron_model
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
 def remove_patron(patron_id: str) -> None:
-    """checks if patron exists and deletes it fromn DB
+    """searches for patron and removes it
 
-    Args:
-        patron_id (str): patron ID
+    :param patron_id: ID of patron to remove
+    :type patron_id: str
     """
     patron_model = search_for_patron(patron_id)
-    remove_from_db(patron_model)
+    try:
+        remove_from_db(patron_model)
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
-def update_patron(patron_id: str, attribute: str, new_value: str) -> None:
-    """Checks if patron exists and updates it's info
+def update_patron(patron_id: str, new_patron_info: PatronEdit) -> None:
+    """search for patron and update it if it exists
 
-    Args:
-        patron_id (str): patron id
-        attribute (str): attribute to update
-        new_value (str): new value of attribute
+    :param patron_id: id of patron to edit
+    :type patron_id: str
+    :param new_patron_info: info in patron to edit
+    :type new_patron_info: PatronEdit
+    :raises AppException: Generic exception
     """
-    if attribute.upper() == "FINES" or attribute.upper() == "FINE_DISCOUNT":
-        raise ProtectedAttribute(f"Cannot edit a patron's {attribute}")
     patron_model = search_for_patron(patron_id)
+    try:
+        update_patron_info_in_db(
+            patron_model, **new_patron_info.model_dump(exclude_none=True)
+        )
 
-    update_patron_info_in_db(patron_model, attribute, new_value)
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc
 
 
-def get_all_patrons() -> [PatronBase]:
-    """returns an array of the basemodel of all patrons
+def get_all_patrons(limit: int, skip: int) -> [PatronReturn]:
+    """Returns requested amount of patrons
 
-    Returns:
-        [PatronModel]: array of basemodel of all patrons
+    :param limit: last patron #
+    :type limit: int
+    :param skip: # of patrons to skip
+    :type skip: int
+    :return: Array of patron
+    :rtype: [PatronReturn]
     """
-    model_list = get_all_patrons_from_db()
-    response_list = []
-    model_factory = PatronModelFactory()
-    for patron_model in model_list:
-        response_list.append(model_factory.create_basemodel(patron_model=patron_model))
-    return response_list
+    try:
+        model_list = get_all_patrons_from_db(limit, skip)
+        return {
+            "items": [
+                PatronModelFactory.create_basemodel(patron_model)
+                for patron_model in model_list
+            ],
+            "limit": limit,
+            "skip": skip,
+        }
+
+    except Exception as exc:
+        raise AppException(500, str(exc)) from exc

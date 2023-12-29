@@ -1,175 +1,133 @@
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+from fastapi import APIRouter, Query
+
 from library_item.library_item_controller import (
+    borrow_item,
     create_library_item,
     get_all_library_items,
     get_library_item,
     remove_library_item,
-    update_library_item,
     return_library_item,
-    borrow_item,
     search_library_items,
-    LibraryItemNotFound,
-    InvalidLibraryItem,
-    ProtectedAttribute,
+    update_library_item,
 )
-from library_item.library_item_model import (
-    Disk,
-    Book,
-    DiskBase,
-    BookBase,
+from library_item.dal.library_item_model import (
+    LibraryItemReturn,
+    LibraryItemEdit,
+    LibraryItemCreate,
 )
-
+from consts import PaginationDefaults
 
 LIBRARY_ITEM_ROUTER = APIRouter()
 LIBRARY_ACTIONS_ROUTER = APIRouter()
 
 
 @LIBRARY_ITEM_ROUTER.get("/")
-def get_all_library_items_route() -> []:
-    """returns array of all library items
+def get_all_library_items_route(
+    limit: Annotated[
+        int, Query(description="Number of items to return", ge=1)
+    ] = PaginationDefaults.limit,
+    skip: Annotated[
+        int, Query(description="Number of items to skip", ge=0)
+    ] = PaginationDefaults.skip,
+) -> dict:
+    """Route to get requested amount of library items
 
-    Returns:
-        []: Array of Library items in DB
+    :return: dict of items
+    :rtype: dict
     """
-    return get_all_library_items()
+
+    return get_all_library_items(limit, skip)
 
 
 @LIBRARY_ITEM_ROUTER.get("/{item_id}")
-def get_library_item_route(item_id: str) -> DiskBase | BookBase:
-    """Get a library item by id
+def get_library_item_route(item_id: str) -> LibraryItemReturn:
+    """Route to get library item by id
 
-    Args:
-        item_id (str): library item id
-
-    Raises:
-        HTTPException: Librray item not found
-
-    Returns:
-        DiskBase | BookBase: libray item model
+    :param item_id: object ID of item
+    :type item_id: str
+    :return: Library item basemodel
+    :rtype: LibraryItemReturn
     """
-    try:
-        return get_library_item(item_id)
-    except LibraryItemNotFound as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Library item with ID {item_id} not found",
-        ) from exc
+    return get_library_item(item_id)
 
 
 @LIBRARY_ITEM_ROUTER.post("/")
-def post_library_item_route(library_item: Book | Disk) -> str:
-    """Route to create a library item
+def post_library_item_route(library_item: LibraryItemCreate) -> str:
+    """Route to add a library item
 
-    Args:
-        library_item (Book | Disk): library item
-
-    Returns:
-        str: library item ID
+    :param library_item: Library item model
+    :type library_item: LibraryItemCreate
+    :return: Item object ID
+    :rtype: str
     """
     return create_library_item(library_item)
 
 
 @LIBRARY_ITEM_ROUTER.delete("/{item_id}")
 def delete_library_item_route(item_id: str) -> None:
-    """Route to delete a library item
+    """Route to delete a library item by ID
 
-    Args:
-        item_id (str): library item ID
-
-    Raises:
-        HTTPException: LibraryItemNotFound
-        HTTPException: InvalidLibraryItem
+    :param item_id: ID of to delete
+    :type item_id: str
     """
-    try:
-        remove_library_item(item_id)
-    except LibraryItemNotFound as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Library item with ID {item_id} not found",
-        ) from exc
-    except InvalidLibraryItem as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Library item with ID {item_id} cannot be deleted as it is checked out",
-        ) from exc
+    remove_library_item(item_id)
 
 
 @LIBRARY_ITEM_ROUTER.patch("/{item_id}")
-def update_library_item_route(
-    item_id: str, attribute_to_edit: str, new_value: str
-) -> None:
-    """Route to update the value of a specific library item attribute
+def update_library_item_route(item_id: str, updated_item: LibraryItemEdit) -> None:
+    """Route to update a library item
 
-    Args:
-        item_id (str): ID of library item to edit
-        attribute_to_edit (str): attribute to edit
-        new_value (str): new value of attribute
-
-    Raises:
-        HTTPException: ProtectedAttribute
+    :param item_id: ID of item to edit
+    :type item_id: str
+    :param updated_item: dict of attributes to edit
+    :type updated_item: LibraryItemEdit
     """
-    try:
-        update_library_item(item_id, attribute_to_edit, new_value)
-    except ProtectedAttribute as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"cannot edit a library items {attribute_to_edit}",
-        ) from exc
+    update_library_item(item_id, updated_item)
 
 
 @LIBRARY_ACTIONS_ROUTER.post("/borrow")
 def borrow_item_route(item_id: str, patron_id: str) -> str:
-    """Route to borrow item
+    """Route to borrow and item from library
 
-    Args:
-        item_id (str): item of item to borrow
-        patron_id (str): id of borrower
-
-    Raises:
-        HTTPException: If item is already borrowed
-
-    Returns:
-        str: Transaction ID
+    :param item_id: ID of item to borrow
+    :type item_id: str
+    :param patron_id: ID of patron borrowing the item
+    :type patron_id: str
+    :return: transaction ID
+    :rtype: str
     """
-    try:
-        return borrow_item(item_id, patron_id)
-    except InvalidLibraryItem as exc:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"library item with id {item_id} is already borrowed",
-        ) from exc
+    return borrow_item(item_id, patron_id)
 
 
 @LIBRARY_ACTIONS_ROUTER.post("/return/{item_id}")
 def return_item_route(item_id: str) -> str:
-    """Route to return item to library
+    """Route to return an item to the library
 
-    Args:
-        item_id (str): ID of item to return
-
-    Raises:
-        HTTPException: if item is not borrowed
-
-    Returns:
-        str: transaction ID
+    :param item_id: ID of item to return
+    :type item_id: str
+    :return: ID of transaction
+    :rtype: str
     """
-    try:
-        return return_library_item(item_id)
-    except InvalidLibraryItem as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"library item with id {item_id} is not borrowed",
-        ) from exc
+    return return_library_item(item_id)
 
 
 @LIBRARY_ACTIONS_ROUTER.get("/search/{query_string}")
-def search_library_items_route(query_string: str) -> []:
-    """route to search for library item by a string
+def search_library_items_route(
+    query_string: str,
+    limit: Annotated[
+        int, Query(description="Number of items to return", ge=1)
+    ] = PaginationDefaults.limit,
+    skip: Annotated[
+        int, Query(description="Number of items to skip", ge=0)
+    ] = PaginationDefaults.skip,
+) -> dict:
+    """Search a library for a string
 
-    Args:
-        query_string (str): string to search for
-
-    Returns:
-        [LibraryItemBase]: Array of all library items that match query
+    :param query_string: String to search for
+    :type query_string: str
+    :return: results of search
+    :rtype: dict
     """
-    return search_library_items(query_string)
+
+    return search_library_items(query_string, limit, skip)
