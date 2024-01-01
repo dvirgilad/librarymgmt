@@ -2,10 +2,10 @@
 import datetime
 from enum import Enum
 import csv
-from mongoengine import DateField, Document, StringField
-
+from beanie import Document
+from typing import Literal
 from library.library_dal import add_to_db
-from library_item.dal.library_item_document import LibraryItemModel
+from library_item.dal.library_item_model import LibraryItemModel
 from patrons.dal.patron_model import PatronModel
 
 
@@ -17,10 +17,10 @@ class Actions(Enum):
 
 
 class TransactionModel(Document):
-    # patron = ReferenceField(PatronModel)
-    # library_item = ReferenceField(LibraryItemModel)
-    action = StringField()
-    timestamp = DateField()
+    patron: PatronModel
+    library_item: LibraryItemModel
+    action: Literal["BORROWED", "RETURNED"]
+    timestamp: datetime.datetime
 
 
 class Transaction:
@@ -59,6 +59,6 @@ class Transaction:
                     ]
                 )
 
-    def send_log_to_db(self) -> str:
+    async def send_log_to_db(self) -> str:
         """Send transaction log to mongo"""
-        return str(add_to_db(self.db_model))
+        return str(await add_to_db(self.db_model))

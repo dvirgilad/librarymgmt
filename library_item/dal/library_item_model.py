@@ -1,8 +1,10 @@
 """DB models for library items"""
 from typing import Literal
-
+from beanie import Document
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
+from patrons.dal.patron_model import PatronModel
+from pymongo import TEXT
 
 
 class LibraryItemCreate(BaseModel):
@@ -29,3 +31,12 @@ class LibraryItemEdit(BaseModel):
     fine: int = None
     borrowing_period: int = None
     library_item_attributes: dict = None
+
+
+class LibraryItemModel(Document, LibraryItemCreate):
+    borrower: PatronModel | None = None
+    borrowed_at: datetime | None = None
+    borrowed_status: bool = False
+
+    class Settings:
+        indexes = [[("name", TEXT), ("genre", TEXT)]]

@@ -23,7 +23,7 @@ LIBRARY_ACTIONS_ROUTER = APIRouter()
 
 
 @LIBRARY_ITEM_ROUTER.get("/")
-def get_all_library_items_route(
+async def get_all_library_items_route(
     limit: Annotated[
         int, Query(description="Number of items to return", ge=1)
     ] = PaginationDefaults.limit,
@@ -37,11 +37,11 @@ def get_all_library_items_route(
     :rtype: dict
     """
 
-    return get_all_library_items(limit, skip)
+    return await get_all_library_items(limit, skip)
 
 
 @LIBRARY_ITEM_ROUTER.get("/{item_id}")
-def get_library_item_route(item_id: str) -> LibraryItemReturn:
+async def get_library_item_route(item_id: str) -> LibraryItemReturn:
     """Route to get library item by id
 
     :param item_id: object ID of item
@@ -49,11 +49,11 @@ def get_library_item_route(item_id: str) -> LibraryItemReturn:
     :return: Library item basemodel
     :rtype: LibraryItemReturn
     """
-    return get_library_item(item_id)
+    return await get_library_item(item_id)
 
 
 @LIBRARY_ITEM_ROUTER.post("/")
-def post_library_item_route(library_item: LibraryItemCreate) -> str:
+async def post_library_item_route(library_item: LibraryItemCreate) -> str:
     """Route to add a library item
 
     :param library_item: Library item model
@@ -61,21 +61,23 @@ def post_library_item_route(library_item: LibraryItemCreate) -> str:
     :return: Item object ID
     :rtype: str
     """
-    return create_library_item(library_item)
+    return await create_library_item(library_item)
 
 
 @LIBRARY_ITEM_ROUTER.delete("/{item_id}")
-def delete_library_item_route(item_id: str) -> None:
+async def delete_library_item_route(item_id: str) -> None:
     """Route to delete a library item by ID
 
     :param item_id: ID of to delete
     :type item_id: str
     """
-    remove_library_item(item_id)
+    await remove_library_item(item_id)
 
 
 @LIBRARY_ITEM_ROUTER.patch("/{item_id}")
-def update_library_item_route(item_id: str, updated_item: LibraryItemEdit) -> None:
+async def update_library_item_route(
+    item_id: str, updated_item: LibraryItemEdit
+) -> None:
     """Route to update a library item
 
     :param item_id: ID of item to edit
@@ -83,11 +85,11 @@ def update_library_item_route(item_id: str, updated_item: LibraryItemEdit) -> No
     :param updated_item: dict of attributes to edit
     :type updated_item: LibraryItemEdit
     """
-    update_library_item(item_id, updated_item)
+    await update_library_item(item_id, updated_item)
 
 
 @LIBRARY_ACTIONS_ROUTER.post("/borrow")
-def borrow_item_route(item_id: str, patron_id: str) -> str:
+async def borrow_item_route(item_id: str, patron_id: str) -> str:
     """Route to borrow and item from library
 
     :param item_id: ID of item to borrow
@@ -97,11 +99,11 @@ def borrow_item_route(item_id: str, patron_id: str) -> str:
     :return: transaction ID
     :rtype: str
     """
-    return borrow_item(item_id, patron_id)
+    return await borrow_item(item_id, patron_id)
 
 
 @LIBRARY_ACTIONS_ROUTER.post("/return/{item_id}")
-def return_item_route(item_id: str) -> str:
+async def return_item_route(item_id: str) -> str:
     """Route to return an item to the library
 
     :param item_id: ID of item to return
@@ -109,11 +111,11 @@ def return_item_route(item_id: str) -> str:
     :return: ID of transaction
     :rtype: str
     """
-    return return_library_item(item_id)
+    return await return_library_item(item_id)
 
 
 @LIBRARY_ACTIONS_ROUTER.get("/search/{query_string}")
-def search_library_items_route(
+async def search_library_items_route(
     query_string: str,
     limit: Annotated[
         int, Query(description="Number of items to return", ge=1)
@@ -130,4 +132,4 @@ def search_library_items_route(
     :rtype: dict
     """
 
-    return search_library_items(query_string, limit, skip)
+    return await search_library_items(query_string, limit, skip)

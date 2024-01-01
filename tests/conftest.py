@@ -10,7 +10,7 @@ from library_item.dal.library_item_model import (
     LibraryItemEdit,
     LibraryItemReturn,
 )
-from library_item.dal.library_item_document import LibraryItemModel
+from library_item.dal.library_item_model import LibraryItemModel
 from main import app
 from patrons.dal.patron_model import PatronCreate, PatronEdit, PatronReturn, PatronModel
 from consts import EXAMPLE_OBJECT_ID
