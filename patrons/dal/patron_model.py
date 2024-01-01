@@ -1,6 +1,7 @@
 """DB models for patrons"""
 from typing import Literal
 from pydantic import BaseModel
+from beanie import Document
 
 
 class PatronCreate(BaseModel):
@@ -25,3 +26,13 @@ class PatronEdit(BaseModel):
     name: str = None
     fine_discount: str = None
     patron_attributes: dict = None
+
+
+class PatronModel(Document, PatronCreate):
+    """Patron model for DB"""
+
+    name: str
+    category: str
+    fines: int = 0
+    fine_discount: float = 0.0
+    patron_attributes: dict

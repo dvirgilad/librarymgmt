@@ -2,11 +2,11 @@
 import datetime
 from enum import Enum
 import csv
-from mongoengine import DateField, Document, ReferenceField, StringField
+from mongoengine import DateField, Document, StringField
 
 from library.library_dal import add_to_db
 from library_item.dal.library_item_document import LibraryItemModel
-from patrons.dal.patron_document import PatronModel
+from patrons.dal.patron_model import PatronModel
 
 
 class Actions(Enum):
@@ -17,8 +17,8 @@ class Actions(Enum):
 
 
 class TransactionModel(Document):
-    patron = ReferenceField(PatronModel)
-    library_item = ReferenceField(LibraryItemModel)
+    # patron = ReferenceField(PatronModel)
+    # library_item = ReferenceField(LibraryItemModel)
     action = StringField()
     timestamp = DateField()
 

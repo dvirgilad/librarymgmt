@@ -12,9 +12,9 @@ from library_item.dal.library_item_model import (
 )
 from library_item.dal.library_item_document import LibraryItemModel
 from main import app
-from patrons.dal.patron_model import PatronCreate, PatronEdit, PatronReturn
-from patrons.dal.patron_document import PatronModel
+from patrons.dal.patron_model import PatronCreate, PatronEdit, PatronReturn, PatronModel
 from consts import EXAMPLE_OBJECT_ID
+import asyncio
 
 
 def pytest_configure(config):
@@ -179,3 +179,10 @@ def add_multiple_items_then_delete(test_book_document, test_disk_document):
     yield
     test_book_document.delete()
     test_disk_document.delete()
+
+
+@pytest.fixture
+def mock_coroutine_result():
+    future = asyncio.Future()
+    future.set_result(EXAMPLE_OBJECT_ID)
+    return future

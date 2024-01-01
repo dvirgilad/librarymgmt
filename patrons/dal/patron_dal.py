@@ -1,20 +1,21 @@
 """Data access layer for patrons"""
-from patrons.dal.patron_document import PatronModel
+from patrons.dal.patron_model import PatronModel
+from beanie.operators import Set
 
 
-def get_patron_from_db(patron_id: str) -> PatronModel:
+async def get_patron_from_db(patron_id: str) -> PatronModel:
     """Gets a patron from db by id
 
     :param patron_id: ID of patron
     :type patron_id: str
-    :return: Patron documnet
+    :return: Patron document
     :rtype: PatronModel
     """
-    patron_obj = PatronModel.objects(id=patron_id).first()
+    patron_obj = await PatronModel.get(document_id=patron_id)
     return patron_obj
 
 
-def get_all_patrons_from_db(limit: int, skip: int) -> [PatronModel]:
+async def get_all_patrons_from_db(limit: int, skip: int) -> [PatronModel]:
     """Returns patrons from db based on limit and skip
 
     :param limit: how many documents to return
@@ -24,10 +25,10 @@ def get_all_patrons_from_db(limit: int, skip: int) -> [PatronModel]:
     :return: array of patrons
     :rtype: [PatronModel]
     """
-    return PatronModel.objects[skip:limit]
+    return await PatronModel.find_all(skip=skip, limit=limit).to_list()
 
 
-def update_patron_info_in_db(
+async def update_patron_info_in_db(
     patron_model: PatronModel,
     attribute: str = None,
     new_value: str | int = None,
@@ -37,17 +38,13 @@ def update_patron_info_in_db(
 
     :param patron_model: model of patron to edit
     :type patron_model: PatronModel
-    :param attribute: attribute to edit, defaults to None
+    async :param attribute: attribute to edit, defaults to None
     :type attribute: str, optional
-    :param new_value: new value of attribute, defaults to None
+    async :param new_value: new value of attribute, defaults to None
     :type new_value: str | int, optional
     """
-    for (
-        attrib,
-        value,
-    ) in kwargs:
-        for attrib, value in kwargs.items():
-            PatronModel.modify(**{f"set__{attrib.lower()}": value})
+    if kwargs:
+        await patron_model.update(Set(kwargs))
     if attribute and new_value:
-        patron_model.modify(**{f"set__{attribute}": new_value})
-    patron_model.save()
+        await patron_model.update(Set({attribute: new_value}))
+    await patron_model.save()

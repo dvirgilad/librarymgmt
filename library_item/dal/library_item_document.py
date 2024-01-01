@@ -4,12 +4,10 @@ from mongoengine import (
     StringField,
     IntField,
     BooleanField,
-    ReferenceField,
     DateTimeField,
     DynamicDocument,
     DictField,
 )
-from patrons.dal.patron_document import PatronModel
 from consts import MONGO_OID_PREFIX, MONGO_DATE_PREFIX
 
 
@@ -22,7 +20,7 @@ class LibraryItemModel(DynamicDocument):
     category = StringField()
     borrowing_period = IntField(0)
     borrowed_status = BooleanField(default=False)
-    borrower = ReferenceField(PatronModel)
+    # borrower = ReferenceField(PatronModel)
     borrowed_at = DateTimeField(default=None)
     library_item_attributes = DictField()
     meta = {

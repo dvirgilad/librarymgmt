@@ -1,9 +1,8 @@
 """ Bussiness logic layer for patrons of library"""
 from mongoengine import ValidationError
-from patrons.dal.patron_document import PatronModel
+from patrons.dal.patron_model import PatronModel, PatronCreate
 from patrons.patron_exceptions import PatronNotFound
-from patrons.patron_model_factory import PatronModelFactory
-from patrons.dal.patron_model import PatronReturn, PatronCreate, PatronEdit
+from patrons.dal.patron_model import PatronReturn, PatronEdit
 from patrons.dal.patron_dal import (
     get_patron_from_db,
     update_patron_info_in_db,
@@ -14,7 +13,7 @@ from library.library_dal import add_to_db, remove_from_db
 from library.library_exceptions import InvalidID, AppException
 
 
-def create_patron(patron: PatronCreate) -> str:
+async def create_patron(patron: PatronCreate) -> str:
     """Convert a patron to document and add it to db
 
     :param patron: Patron basemodel
@@ -23,14 +22,14 @@ def create_patron(patron: PatronCreate) -> str:
     :rtype: str
     """
     try:
-        db_model = PatronModelFactory.create_model(patron=patron)
-        patron_id = add_to_db(db_model)
+        patron_model = PatronModel(**patron.model_dump())
+        patron_id = await add_to_db(patron_model)
         return str(patron_id)
     except Exception as exc:
         raise AppException(500, str(exc)) from exc
 
 
-def search_for_patron(patron_id: str) -> PatronModel:
+async def search_for_patron(patron_id: str) -> PatronModel:
     """Search for patron by ID and return it's document model
 
     :param patron_id: ID of patron to search for
@@ -41,7 +40,7 @@ def search_for_patron(patron_id: str) -> PatronModel:
     :rtype: PatronModel
     """
     try:
-        patron_db_model = get_patron_from_db(patron_id)
+        patron_db_model = await get_patron_from_db(patron_id)
     except ValidationError as exc:
         raise InvalidID(object_id=patron_id) from exc
     if patron_db_model is None:
@@ -49,36 +48,36 @@ def search_for_patron(patron_id: str) -> PatronModel:
     return patron_db_model
 
 
-def get_patron(patron_id: str) -> PatronReturn:
+async def get_patron(patron_id: str) -> PatronModel:
     """Searches for patron and converts it to basemodel
 
     :param patron_id: ID of patron to search for
     :type patron_id: str
     :return: Patron basemodel
-    :rtype: PatronReturn
+    :rtype: PatronModel
     """
-    patron_db_model = search_for_patron(patron_id)
+
+    patron_db_model = await search_for_patron(patron_id)
     try:
-        patron_model = PatronModelFactory.create_basemodel(patron_db_model)
-        return patron_model
+        return patron_db_model.model_dump()
     except Exception as exc:
         raise AppException(500, str(exc)) from exc
 
 
-def remove_patron(patron_id: str) -> None:
+async def remove_patron(patron_id: str) -> None:
     """searches for patron and removes it
 
     :param patron_id: ID of patron to remove
     :type patron_id: str
     """
-    patron_model = search_for_patron(patron_id)
+    patron_model = await search_for_patron(patron_id)
     try:
-        remove_from_db(patron_model)
+        await remove_from_db(patron_model)
     except Exception as exc:
         raise AppException(500, str(exc)) from exc
 
 
-def update_patron(patron_id: str, new_patron_info: PatronEdit) -> None:
+async def update_patron(patron_id: str, new_patron_info: PatronEdit) -> None:
     """search for patron and update it if it exists
 
     :param patron_id: id of patron to edit
@@ -87,9 +86,9 @@ def update_patron(patron_id: str, new_patron_info: PatronEdit) -> None:
     :type new_patron_info: PatronEdit
     :raises AppException: Generic exception
     """
-    patron_model = search_for_patron(patron_id)
+    patron_model = await search_for_patron(patron_id)
     try:
-        update_patron_info_in_db(
+        await update_patron_info_in_db(
             patron_model, **new_patron_info.model_dump(exclude_none=True)
         )
 
@@ -97,7 +96,7 @@ def update_patron(patron_id: str, new_patron_info: PatronEdit) -> None:
         raise AppException(500, str(exc)) from exc
 
 
-def get_all_patrons(limit: int, skip: int) -> [PatronReturn]:
+async def get_all_patrons(limit: int, skip: int) -> [PatronReturn]:
     """Returns requested amount of patrons
 
     :param limit: last patron #
@@ -108,12 +107,9 @@ def get_all_patrons(limit: int, skip: int) -> [PatronReturn]:
     :rtype: [PatronReturn]
     """
     try:
-        model_list = get_all_patrons_from_db(limit, skip)
+        model_list = await get_all_patrons_from_db(limit, skip)
         return {
-            "items": [
-                PatronModelFactory.create_basemodel(patron_model)
-                for patron_model in model_list
-            ],
+            "items": model_list,
             "limit": limit,
             "skip": skip,
         }
